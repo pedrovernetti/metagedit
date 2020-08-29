@@ -1,0 +1,11 @@
+[Plugin]
+Loader=python3
+Module=metagedit
+IAge=3
+Name=Metagedit
+Description=Adds multiple improvements and functionalities to gedit
+Icon=text-x-modelica
+Authors=Pedro Vernetti G. <pedrovernetti@gmail.com>
+Copyright=Copyright © 2020 Pedro Vernetti G.
+Website=https://github.com/pedrovernetti/metagedit
+
