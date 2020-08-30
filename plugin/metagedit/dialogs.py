@@ -31,7 +31,7 @@
 #
 # =============================================================================================
 
-from gi.repository import GLib, GObject, Gio, Gtk, Gdk, Gedit
+from gi.repository import GObject, Gtk, Gedit
 
 
 
