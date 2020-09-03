@@ -22,7 +22,7 @@ else
 
 # take command line arguments
 MODE=1
-if [[ "$#" -gt 1 ]]; then 
+if [[ "$#" -gt 1 ]]; then
     printf "Usage: '$0' [--reinstall|--uninstall|--full-uninstall]\n"
     exit 1
 elif [[ "$#" -gt 0 ]]; then
@@ -41,14 +41,13 @@ if [[ "$MODE" -lt 2 ]]; then
     printf "\033[1mInstalling dependencies...\033[0m\n"
     tryDoing sudo apt -y install gedit python3-pip python3-gi
     tryDoing sudo apt-get install gir?.?-{glib*,gtk-3.0}
-    tryDoing sudo apt -y install
-    tryDoing sudo pip3 install chardet
-    
+    tryDoing sudo pip3 install chardet iso-639
+
 # non-default modes' first step (removing old files)
 else
     sudo rm -vfr "$extensions_folder/metagedit*"
-    if [[ "$MODE" -lt 4 ]]; then rm -vfr "$HOME/.config/gedit/metagedit"; fi
-    if [[ "$MODE" -gt 2 ]]; then 
+    if [[ "$MODE" -lt 4 ]]; then rm -vfr "$HOME/.config/gedit/metagedit*"; fi
+    if [[ "$MODE" -gt 2 ]]; then
         # finishing
         printf "\033[1;32mDONE!\033[0m\n"
         exit
@@ -63,4 +62,3 @@ tryDoing sudo cp -rn "${selfpath%/*}/plugin/"* "$extensions_folder"
 # finishing
 tryDoing sudo -u "${HOME##*/}" mkdir -p "$HOME/.config/gedit"
 printf "\033[1;32mDONE!\033[0m\n"
-

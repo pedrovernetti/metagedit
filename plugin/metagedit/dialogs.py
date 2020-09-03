@@ -14,97 +14,99 @@
 # Name: Metagedit
 # Description: gedit plugin which adds multiple improvements and functionalities to it
 #
-# #  In order to have this script working (if it is currently not), run 'install.sh'. In case
-#    it is missing or does not work, follow these steps:
-# 1. install pip3 (Python package installer) using your package manager;  .
-      # 2. with pip, install lxml, pymediainfo, mutagen, mido, pillow, pyexiv2, .
-      #    pypdf2, olefile and torrentool;                                      .
-# 3. create a subfolder named "metagedit" at the gedit plugins folder     .
-#    (which uses to be "/usr/lib/x86_64-linux-gnu/gedit/plugins");        .
-# 4. place this file, together with every other python file that has came .
-#    together with it, inside that just created "metagedit" subfolder;    .
-# 5. place at the gedit plugins folder (not the subfolder) the file named .
-#    'metagedit.plugin', that must also have came together with this file .
-#    you're reading (but not in the same folder);                         .
-# 6. open or restart gedit, then go to is Preferences > Plugins and check .
-#    the entry for this plugin ("Metagedit").                             .
-#
+# #  In order to have this script working (if it is currently not), run 'install.sh'.
 # =============================================================================================
 
+import re
+import iso639
 from gi.repository import GObject, Gtk, Gedit
+
+from .textManipulation import *
+from .encodingsAndLanguages import *
 
 
 
 class EncodingDialog(Gtk.Window):
 
     def __init__( self, geditView ):
-        Gtk.Window.__init__(self, title=r'Character Encoding',
+        ## ENCODING STUFF
+        Gtk.Window.__init__(self, title=r'Set Character Encoding',
                                   transient_for=geditView.get_toplevel(),
-                                  modal=True,
                                   resizable=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         self.view = geditView
-
-        languageFilterEntry = Gtk.Entry(placeholder_text=r'Filter possible encodings by language')
-        languageFilterEntry.set_max_width_chars(30)
-        languageFilterEntry.set_width_chars(30)
+        languageStore = Gtk.ListStore(str, str)
+        seenLanguages = set()
+        for language in iso639.languages.name.values():
+            if ((len(language.part2b) == 3) and (language.part2b not in seenLanguages)):
+                languageStore.append([language.part2b, language.name])
+                seenLanguages.add(language.part2b)
+        languageFilterEntry = Gtk.ComboBox.new_with_model_and_entry(languageStore)
+        languageFilterEntry.connect(r'changed', self._onLanguageChanged)
+        languageFilterEntry.set_entry_text_column(1)
+        languageFilterEntry.set_tooltip_text(r'Filter possible encodings by language')
+        languageFilterEntry.get_child().set_placeholder_text(r'Filter possible encodings by language')
         content.pack_start(languageFilterEntry, True, False, 5)
-
         actualCurrentEncoding = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         actualCurrentEncodingLabel = Gtk.Label(label=r'Treat Current Encoding as:')
         actualCurrentEncoding.pack_start(actualCurrentEncodingLabel, False, True, 10)
-        self._actualCurrentEncodingEntry = Gtk.Entry(text=r'Autodetect')
-        self._actualCurrentEncodingEntry.set_max_width_chars(25)
-        self._actualCurrentEncodingEntry.set_width_chars(25)
-        actualCurrentEncoding.pack_start(self._actualCurrentEncodingEntry, True, True, 0)
+        encodingStore = Gtk.ListStore(str)
+        encodingStore.append([r'Autodetect']) #TODO: set as default
+        for encoding in supportedEncodings():
+            encodingStore.append([encoding])
+        actualCurrentEncodingEntry = Gtk.ComboBox.new_with_model(encodingStore)
+        actualCurrentEncodingEntry.connect(r'changed', self._onEncodingChanged)
+        actualCurrentEncodingText = Gtk.CellRendererText()
+        actualCurrentEncodingEntry.pack_start(actualCurrentEncodingText, True)
+        actualCurrentEncodingEntry.add_attribute(actualCurrentEncodingText, r'text', 0)
+        actualCurrentEncoding.pack_start(actualCurrentEncodingEntry, True, True, 0)
         content.pack_start(actualCurrentEncoding, True, False, 5)
-
         UTF8Button = Gtk.Button(label=r'Convert to UTF-8')
-        UTF8Button.connect(r'clicked', self._toUTF8)
+        UTF8Button.connect(r'clicked', self._convertEncoding)
         content.pack_start(UTF8Button, True, True, 5)
-        UTF16Button = Gtk.Button(label=r'Convert to UTF-16')
-        UTF16Button.connect(r'clicked', self._toUTF16)
-        content.pack_start(UTF16Button, True, True, 5)
-        UTF32Button = Gtk.Button(label=r'Convert to UTF-32')
-        UTF32Button.connect(r'clicked', self._toUTF32)
-        content.pack_start(UTF32Button, True, True, 5)
         ASCIIButton = Gtk.Button(label=r'Convert to ASCII (forced)')
         ASCIIButton.connect(r'clicked', self._toASCIIForced)
         content.pack_start(ASCIIButton, True, True, 5)
         self.add(content)
         self.connect(r'delete-event', self._onDestroy)
+        UTF8Button.grab_focus()
+
+    def _onLanguageChanged( self, combo ): #TODO: limit encoding combobox options
+        i = combo.get_active_iter()
+        if (i is not None):
+            iso6392B, language = combo.get_model()[i][:2]
+            print("Selected: ISO6392=%s, name=%s" % (iso6392b, language))
+        else:
+            language = re.sub(r'\s+', r' ', combo.get_child().get_text().strip().capitalize())
+            if (len(language) < 2): return
+            try: iso6392B = iso639.languages.name.get(language).part2b
+            except: iso6392B = r'und'
+            if (iso6392B in {r'', r'mul', r'und', r'zxx'}): return
+            print("Selected: ISO6392=%s, name=%s" % (iso6392B, language))
+
+    def _onEncodingChanged( self, combo ): #TODO: set encoding and preview it (apply -> undo+apply -> undo+apply -> ...)
+        pass
 
     def _onDestroy( self, widget=None, event=None ):
         self.hide()
         return True
 
-    def _convertEncoding( self, target ):
-        encoding = self._actualCurrentEncodingEntry.get_text().strip()
-        print("convert from \033[1m" + encoding + "\033[0m to \033[1m" + target + "\033[1m")
-        #self.view.metageditActivatable.convertEncoding(self.view.get_buffer(), encoding, target)
-        #self.hide()
-
-    def _toUTF8( self, widget ):
-        self._convertEncoding(r'utf-8')
-
-    def _toUTF16( self, widget ):
-        self._convertEncoding(r'utf-16')
-
-    def _toUTF32( self, widget ):
-        self._convertEncoding(r'utf-32')
+    def _convertEncoding( self, widget ):
+        encoding = self._actualCurrentEncodingEntry.get_text().strip() #TODO: get encoding combobox value
+        redecode(self.view.get_buffer(), encoding)
+        self.hide()
 
     def _toASCIIForced( self, widget ):
-        self._convertEncoding(r'ascii') #TODO
+        pass #TODO: remove diacritics, convert unicode spaces to 0x20, strip other chars, etc., then re-encode
 
 
 
 class SortDialog(Gtk.Window):
 
     def __init__( self, geditView ):
-        Gtk.Window.__init__(self, title=r'Sort',
+        Gtk.Window.__init__(self, title=r'Sort Lines',
                                   transient_for=geditView.get_toplevel(),
-                                  modal=True,
                                   resizable=False)
         self.reverse = False
         self.dedup = False
@@ -130,11 +132,18 @@ class SortDialog(Gtk.Window):
         self._sortOffsetEntry.set_width_chars(3)
         sortOffset.pack_start(self._sortOffsetEntry, True, True, 0)
         content.pack_start(sortOffset, True, False, 5)
-        sortButton = Gtk.Button(label='Do')
+        sortButton = Gtk.Button(label=r'Sort')
         sortButton.connect(r'clicked', self._sort)
         content.pack_start(sortButton, True, True, 5)
+        dedupButton = Gtk.Button(label=r'Remove Duplicates (no sorting)')
+        dedupButton.connect(r'clicked', self._dedup)
+        content.pack_start(dedupButton, True, True, 5)
+        shuffleButton = Gtk.Button(label=r'Shuffle')
+        shuffleButton.connect(r'clicked', self._shuffle)
+        content.pack_start(shuffleButton, True, True, 5)
         self.add(content)
-        self.connect('delete-event', self._onDestroy)
+        self.connect(r'delete-event', self._onDestroy)
+        sortButton.grab_focus()
 
     def _onDestroy( self, widget=None, event=None ):
         self.hide()
@@ -149,14 +158,18 @@ class SortDialog(Gtk.Window):
     def _setCase( self, button ):
         self.case = button.get_active()
 
-    def _sort( self, widget ):
+    def _getOffset( self, button ):
         offset = self._sortOffsetEntry.get_text().strip()
-        offset = int(offset) if offset else 0
-        self.view.metageditActivatable.sortLines(
-                self.view.get_buffer(),
-                reverse=self.reverse,
-                caseSensitive=self.case,
-                dedup=self.dedup,
-                offset=offset)
+        return (int(offset) if offset else 0)
+
+    def _dedup( self, widget ):
+        sortLines(self.view.get_buffer(), False, self.reverse, self.case, self.dedup, self._getOffset())
         self.hide()
 
+    def _shuffle( self, widget ):
+        shuffleLines(self.view.get_buffer(), self.case, self.dedup, offset)
+        self.hide()
+
+    def _sort( self, widget ):
+        sortLines(self.view.get_buffer(), True, self.reverse, self.case, self.dedup, self._getOffset())
+        self.hide()
