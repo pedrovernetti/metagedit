@@ -52,7 +52,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
     def _showEncodingDialog( self ):
         ## ENCODING STUFF
         view = self.window.get_active_view()
-        if view and view.metageditActivatable: view.metageditActivatable.showEncodingDialog()
+        if (view and view.metageditActivatable): view.metageditActivatable.showEncodingDialog()
 
     def _allowOpenAsAdmin( self ):
         ## OPEN AS ADMIN
@@ -70,13 +70,6 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         if (not (document.can_undo() or document.can_redo())):
             self.window.close_tab(self.window.get_active_tab())
         self.window.create_tab_from_location(gfile, encoding, 0, 0, False, True)
-
-    def showEncodingDialog( self, widget ):
-        ## ENCODING STUFF
-        if (not self._encodingDialog.get_visible()):
-            self._encodingDialog.show_all()
-        else:
-            self._encodingDialog.present()
 
     def _switchTabs( self, forward=True ):
         ## EXTRA KEYBOARD SHORTCUTS
@@ -141,18 +134,12 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.add_action(shuffleAction)
         ## EXTRA KEYBOARD SHORTCUTS
         self.handlers.add(self.window.connect(r'key-press-event', self._onKeyPressEvent))
-        SwitchTabNext1Action = Gio.SimpleAction(name=r'switch-tab-next')
-        SwitchTabNext2Action = Gio.SimpleAction(name=r'switch-tab-next-alt')
-        SwitchTabNext1Action.connect(r'activate', lambda a, p: self._switchTabs(True))
-        SwitchTabNext2Action.connect(r'activate', lambda a, p: self._switchTabs(True))
-        self.window.add_action(SwitchTabNext1Action)
-        self.window.add_action(SwitchTabNext2Action)
-        SwitchTabPrevious1Action = Gio.SimpleAction(name=r'switch-tab-previous')
-        SwitchTabPrevious2Action = Gio.SimpleAction(name=r'switch-tab-previous-alt')
-        SwitchTabPrevious1Action.connect(r'activate', lambda a, p: self._switchTabs(False))
-        SwitchTabPrevious2Action.connect(r'activate', lambda a, p: self._switchTabs(False))
-        self.window.add_action(SwitchTabPrevious1Action)
-        self.window.add_action(SwitchTabPrevious2Action)
+        SwitchTabNextAction = Gio.SimpleAction(name=r'switch-tab-next')
+        SwitchTabNextAction.connect(r'activate', lambda a, p: self._switchTabs(True))
+        self.window.add_action(SwitchTabNextAction)
+        SwitchTabPreviousAction = Gio.SimpleAction(name=r'switch-tab-previous')
+        SwitchTabPreviousAction.connect(r'activate', lambda a, p: self._switchTabs(False))
+        self.window.add_action(SwitchTabPreviousAction)
         ## OPEN AS ADMIN
         openAsAdminAction = Gio.SimpleAction(name=r'open-as-admin')
         openAsAdminAction.connect(r'activate', self._openAsAdmin)
@@ -172,9 +159,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.remove_action(r'sort-dialog')
         self.window.remove_action(r'shuffle')
         self.window.remove_action(r'switch-tab-next')
-        self.window.remove_action(r'switch-tab-next-alt')
         self.window.remove_action(r'switch-tab-previous')
-        self.window.remove_action(r'switch-tab-previous-alt')
         self.window.remove_action(r'open-as-admin')
 
     def do_update_state( self ):
