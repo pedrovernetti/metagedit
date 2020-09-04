@@ -18,6 +18,7 @@
 # =============================================================================================
 
 import os
+from datetime import datetime
 import gi
 gi.require_version('Gedit', '3.0')
 from gi.repository import GLib, GObject, Gio, Gtk, Gdk, Gedit
@@ -110,7 +111,14 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
     def _onTabAdded( self, window, tab, data=None ):
         tab.get_document().connect(r'save', self._onDocumentSave)
 
-    def _saveSession( self, sessionName=r'._autosavedSession_' ):
+    def _showSaveSessionDialog( self ):
+        ## SESSIONS
+        if (not self._saveSessionDialog.get_visible()):
+            self._saveSessionDialog.show_all()
+        else:
+            self._saveSessionDialog.present()
+
+    def saveSession( self, sessionName=r'._autosavedSession_' ):
         ## SESSIONS
         if (self.window.get_active_document() is None): return
         tabs = self.window.get_active_tab().get_parent().get_children()
@@ -122,8 +130,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         try: open(self._sessionsFolder + sessionName, r'w').write('\n'.join(session))
         except: pass
 
-    def _showSaveSessionDialog
-        #TODO
+    def suggestedSessionName( self ):
+        name = self.window.get_active_document().get_short_name_for_display()
+        return (name + datetime.now().strftime(r' [%Y-%m-%d %H-%M-%S]'))
 
 
     def do_activate( self ):
@@ -165,9 +174,13 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## SESSIONS
         self._sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
         if (not os.path.isdir(self._sessionsFolder)): os.mkdir(self._sessionsFolder)
-        saveSessionAction = Gio.SimpleAction(name=r'save-session')
-        saveSessionAction.connect(r'activate', lambda a, p: self._saveSession())
+        self._saveSessionDialog = SaveSessionDialog(self.window)
+        saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
+        saveSessionAction.connect(r'activate', lambda a, p: self.saveSession())
         self.window.add_action(saveSessionAction)
+        saveSessionDialogAction = Gio.SimpleAction(name=r'save-session-dialog')
+        saveSessionDialogAction.connect(r'activate', lambda a, p: self._showSaveSessionDialog())
+        self.window.add_action(saveSessionDialogAction)
 
     def do_deactivate( self ):
         delattr(self.window, r'metageditActivatable')
@@ -183,7 +196,8 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.remove_action(r'switch-tab-next')
         self.window.remove_action(r'switch-tab-previous')
         self.window.remove_action(r'open-as-admin')
-        self.window.remove_action(r'save-session')
+        self.window.remove_action(r'save-session-auto')
+        self.window.remove_action(r'save-session-dialog')
 
     def do_update_state( self ):
         pass
@@ -340,8 +354,8 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
 
     def do_activate( self ):
         self.app.metageditActivatable = self
-        self._menuItems = set()
         self._fileMenu = self.extend_menu(r'file-section')
+        self._file2Menu = self.extend_menu(r'file-section-1')
         self._editMenu = self.extend_menu(r'edit-section')
         self._viewMenu = self.extend_menu(r'view-section')
         self._view2Menu = self.extend_menu(r'view-section-2')
@@ -349,7 +363,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self._documentsMenu = self.extend_menu(r'documents-section')
         ## OPEN AS ADMIN
         openAsAdminItem = Gio.MenuItem.new("Edit as Administrator...", r'win.open-as-admin')
-        self._fileMenu.append_menu_item(openAsAdminItem)
+        self._file2Menu.prepend_menu_item(openAsAdminItem)
         ## ENCODING STUFF
         encodingItem = Gio.MenuItem.new("Manually Set Character Encoding...", r'win.encoding-dialog')
         self._toolsMenu.prepend_menu_item(encodingItem)
@@ -383,20 +397,23 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self._setKeyboardShortcut(r'win.find-next', r'<Primary><Shift>F')
         self._setKeyboardShortcut(r'win.remove-line', r'<Primary>E')
         self._clearKeyboardShortcut(r'app.quit')
-          # some examples: r'F1' r'<Primary><Shift><Alt>Page_Down' r'Escape' ...
         ## SESSIONS
         sessionsSubmenu = Gio.Menu()
         sessionsSubmenuItem = Gio.MenuItem.new_submenu("Sessions", sessionsSubmenu)
-        self._documentsMenu.prepend_menu_item(sessionsSubmenuItem)
-        saveSessionItem = Gio.MenuItem.new("Save Current Session", r'win.save-session')
+        if (self._documentsMenu is not None):
+            self._documentsMenu.prepend_menu_item(sessionsSubmenuItem)
+        else:
+            self._fileMenu.append_menu_item(sessionsSubmenuItem)
+        saveSessionItem = Gio.MenuItem.new("Save Current Session", r'win.save-session-dialog')
         sessionsSubmenu.append_item(saveSessionItem)
 
     def do_deactivate( self ):
         delattr(self.app, r'metageditActivatable')
-        for item in self._menuItems: del item
         del self._fileMenu
+        del self._file2Menu
         del self._editMenu
         del self._viewMenu
+        del self._view2Menu
         del self._toolsMenu
         del self._documentsMenu
         ## BOTTOM MARGIN

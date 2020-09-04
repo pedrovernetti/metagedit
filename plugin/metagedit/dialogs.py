@@ -184,8 +184,33 @@ class SortDialog(Gtk.Window):
 
 class SaveSessionDialog(Gtk.Window):
 
-    def __init__( self, geditView ):
+    def __init__( self, geditWindow ):
         Gtk.Window.__init__(self, title=r'Save Session',
-                                  transient_for=geditView.get_toplevel(),
+                                  transient_for=geditWindow.get_toplevel(),
                                   resizable=False)
-        pass
+        self.window = geditWindow
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content.set_border_width(10)
+        self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
+        self.sessionNameEntry.set_width_chars(40)
+        self.sessionNameEntry.set_max_length(40)
+        self.sessionNameEntry.set_alignment(0.5)
+        content.pack_start(self.sessionNameEntry, True, True, 5)
+        saveButton = Gtk.Button(label=r'Save')
+        saveButton.connect(r'clicked', self._saveSession)
+        content.pack_start(saveButton, True, True, 5)
+        self.add(content)
+        self.connect(r'show', self._onShow)
+        self.connect(r'delete-event', self._onDestroy)
+        saveButton.grab_focus()
+
+    def _onShow( self, widget=None, event=None ):
+        self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
+
+    def _onDestroy( self, widget=None, event=None ):
+        self.hide()
+        return True
+
+    def _saveSession( self, widget ):
+        self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
+        self.hide()
