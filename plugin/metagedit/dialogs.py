@@ -26,18 +26,23 @@ from .encodingsAndLanguages import *
 
 
 
+def showDialog( dialog ):
+    if (dialog.window is None): return
+    if (not dialog.get_visible()): dialog.show_all()
+    else: dialog.present()
+
+
+
 ## ENCODING STUFF
 
 class EncodingDialog(Gtk.Window):
 
-    def __init__( self, geditView ):
-        ## ENCODING STUFF
+    def __init__( self ):
         Gtk.Window.__init__(self, title=r'Set Character Encoding',
-                                  transient_for=geditView.get_toplevel(),
                                   resizable=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
-        self.window = geditView.get_toplevel()
+        self.window = None
         self.previewing = False
         languageStore = Gtk.ListStore(str, str)
         seenLanguages = set()
@@ -76,6 +81,7 @@ class EncodingDialog(Gtk.Window):
         self.setEncodingButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
+        if (self.window is None): return
         self.setEncodingButton.set_sensitive(False)
         self.previewing = False
         self.actualCurrentEncodingEntry.set_active(0)
@@ -131,20 +137,27 @@ class EncodingDialog(Gtk.Window):
             redecode(self.window.get_active_document(), encoding, True)
         self.hide()
 
+    def setMainWindow( self, window ):
+        self.window = window
+        self.set_transient_for(window)
+
+
+
+encodingDialog = EncodingDialog()
+
 
 
 ## LINE OPERATIONS
 
 class SortDialog(Gtk.Window):
 
-    def __init__( self, geditView ):
+    def __init__( self ):
         Gtk.Window.__init__(self, title=r'Sort Lines',
-                                  transient_for=geditView.get_toplevel(),
                                   resizable=False)
         self.reverse = False
         self.dedup = False
         self.case = False
-        self.window = geditView.get_toplevel()
+        self.window = None
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         reverseSort = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -175,8 +188,12 @@ class SortDialog(Gtk.Window):
         shuffleButton.connect(r'clicked', self._shuffle)
         content.pack_start(shuffleButton, True, True, 5)
         self.add(content)
+        self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)
         sortButton.grab_focus()
+
+    def _onShow( self, widget=None, event=None ):
+        if (self.window is None): return
 
     def _onDestroy( self, widget=None, event=None ):
         self.hide()
@@ -207,17 +224,24 @@ class SortDialog(Gtk.Window):
         sortLines(self.window.get_active_document(), True, self.reverse, self.case, self.dedup, self._getOffset())
         self.hide()
 
+    def setMainWindow( self, window ):
+        self.window = window
+        self.set_transient_for(window)
+
+
+
+sortDialog = SortDialog()
+
 
 
 ## SESSIONS
 
 class SaveSessionDialog(Gtk.Window):
 
-    def __init__( self, geditWindow ):
+    def __init__( self ):
         Gtk.Window.__init__(self, title=r'Save Session',
-                                  transient_for=geditWindow.get_toplevel(),
                                   resizable=False)
-        self.window = geditWindow
+        self.window = None
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
@@ -234,6 +258,7 @@ class SaveSessionDialog(Gtk.Window):
         saveButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
+        if (self.window is None): return
         self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
 
     def _onDestroy( self, widget=None, event=None ):
@@ -243,3 +268,51 @@ class SaveSessionDialog(Gtk.Window):
     def _saveSession( self, widget ):
         self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
         self.hide()
+
+    def setMainWindow( self, window ):
+        self.window = window
+        self.set_transient_for(window)
+
+
+
+class ManageSessionsDialog(Gtk.Window): #TODO
+
+    def __init__( self ):
+        Gtk.Window.__init__(self, title=r'Save Session',
+                                  resizable=False)
+        self.window = None
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content.set_border_width(10)
+        self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
+        self.sessionNameEntry.set_width_chars(40)
+        self.sessionNameEntry.set_max_length(40)
+        self.sessionNameEntry.set_alignment(0.5)
+        content.pack_start(self.sessionNameEntry, True, True, 5)
+        saveButton = Gtk.Button(label=r'Save')
+        saveButton.connect(r'clicked', self._saveSession)
+        content.pack_start(saveButton, True, True, 5)
+        self.add(content)
+        self.connect(r'show', self._onShow)
+        self.connect(r'delete-event', self._onDestroy)
+        saveButton.grab_focus()
+
+    def _onShow( self, widget=None, event=None ):
+        if (self.window is None): return
+        self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
+
+    def _onDestroy( self, widget=None, event=None ):
+        self.hide()
+        return True
+
+    def _saveSession( self, widget ):
+        self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
+        self.hide()
+
+    def setMainWindow( self, window ):
+        self.window = window
+        self.set_transient_for(window)
+
+
+
+saveSessionDialog = SaveSessionDialog()
+manageSessionsDialog = ManageSessionsDialog()

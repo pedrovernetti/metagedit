@@ -45,16 +45,6 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         else:
             self._encodingStatusLabel.hide()
 
-    def _showSortDialog( self ):
-        ## LINE OPERATIONS
-        view = self.window.get_active_view()
-        if view and view.metageditActivatable: view.metageditActivatable.showSortDialog()
-
-    def _showEncodingDialog( self ):
-        ## ENCODING STUFF
-        view = self.window.get_active_view()
-        if (view and view.metageditActivatable): view.metageditActivatable.showEncodingDialog()
-
     def _allowOpenAsAdmin( self ):
         ## OPEN AS ADMIN
         if (self.window.get_active_document() is None): return False
@@ -111,13 +101,6 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
     def _onTabAdded( self, window, tab, data=None ):
         tab.get_document().connect(r'save', self._onDocumentSave)
 
-    def _showSaveSessionDialog( self ):
-        ## SESSIONS
-        if (not self._saveSessionDialog.get_visible()):
-            self._saveSessionDialog.show_all()
-        else:
-            self._saveSessionDialog.present()
-
     def saveSession( self, sessionName=r'._autosavedSession_' ):
         ## SESSIONS
         if (self.window.get_active_document() is None): return
@@ -165,18 +148,20 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.handlers.add(self.window.connect(r'active_tab_changed', self._onActiveTabChange))
         self.handlers.add(self.window.connect(r'active_tab_state_changed', self._onActiveTabStateChange))
         ## ENCODING STUFF
+        encodingDialog.setMainWindow(self.window)
         self._encodingStatusLabel = Gtk.Label(label='\U00002014')
         self.window.get_statusbar().pack_end(self._encodingStatusLabel, False, False, 12)
         self._updateEncodingStatus(self.window.get_active_document())
         encodingAction = Gio.SimpleAction(name=r'encoding-dialog')
-        encodingAction.connect(r'activate', lambda a, p: self._showEncodingDialog())
+        encodingAction.connect(r'activate', lambda a, p: showDialog(encodingDialog))
         self.window.add_action(encodingAction)
         ## LINE OPERATIONS
+        sortDialog.setMainWindow(self.window)
         removeLineAction = Gio.SimpleAction(name=r'remove-line')
         removeLineAction.connect(r'activate', lambda a, p: removeLines(self.window.get_active_document()))
         self.window.add_action(removeLineAction)
         sortAction = Gio.SimpleAction(name=r'sort-dialog')
-        sortAction.connect(r'activate', lambda a, p: self._showSortDialog())
+        sortAction.connect(r'activate', lambda a, p: showDialog(sortDialog))
         self.window.add_action(sortAction)
         shuffleAction = Gio.SimpleAction(name=r'shuffle')
         shuffleAction.connect(r'activate', lambda a, p: shuffleLines(self.window.get_active_document()))
@@ -210,21 +195,26 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
                 sessionAction = Gio.SimpleAction(name=actionName)
                 sessionAction.connect(r'activate', lambda a, p: self.loadSession(session))
                 self.window.add_action(sessionAction)
-        self._saveSessionDialog = SaveSessionDialog(self.window)
         saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
         saveSessionAction.connect(r'activate', lambda a, p: self.saveSession())
         self.window.add_action(saveSessionAction)
+        saveSessionDialog.setMainWindow(self.window)
         saveSessionDialogAction = Gio.SimpleAction(name=r'save-session-dialog')
-        saveSessionDialogAction.connect(r'activate', lambda a, p: self._showSaveSessionDialog())
+        saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
+        manageSessionsDialog.setMainWindow(self.window)
 
     def do_deactivate( self ):
         delattr(self.window, r'metageditActivatable')
         for handler in self.handlers: self.window.disconnect(handler)
         ## ENCODING STUFF
+        encodingDialog.destroy()
+        del encodingDialog
         Gtk.Container.remove(self.window.get_statusbar(), self._encodingStatusLabel)
         del self._encodingStatusLabel
         ## LINE OPERATIONS
+        sortDialog.destroy()
+        del sortDialog
         self.window.remove_action(r'encoding-dialog')
         self.window.remove_action(r'remove-line')
         self.window.remove_action(r'sort-dialog')
@@ -264,7 +254,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingOptionsSubmenu = Gtk.Menu()
         encodingItem = Gtk.MenuItem.new_with_mnemonic("Manually Set Encoding...")
         encodingItem.show()
-        encodingItem.connect(r'activate', lambda i: self.showEncodingDialog())
+        encodingItem.connect(r'activate', lambda i: showDialog(encodingDialog))
         encodingOptionsSubmenu.append(encodingItem)
         fixEncodingItem = Gtk.MenuItem.new_with_mnemonic("Re-Detect Encoding")
         fixEncodingItem.show()
@@ -301,7 +291,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortOptionsSubmenu.append(sortItem)
         sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
         sortDialogItem.show()
-        sortDialogItem.connect(r'activate', lambda i: self.showSortDialog())
+        sortDialogItem.connect(r'activate', lambda i: showDialog(sortDialog))
         sortOptionsSubmenu.append(sortDialogItem)
         sortOptions.set_submenu(sortOptionsSubmenu)
         ## REMOVE TRAILING SPACES
@@ -316,20 +306,6 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         formattingOptionsSubmenu.append(removeTrailingSpacesItem)
         formattingOptions.set_submenu(formattingOptionsSubmenu)
 
-    def showSortDialog( self ):
-        ## LINE OPERATIONS
-        if (not self._sortDialog.get_visible()):
-            self._sortDialog.show_all()
-        else:
-            self._sortDialog.present()
-
-    def showEncodingDialog( self ):
-        ## ENCODING STUFF
-        if (not self._encodingDialog.get_visible()):
-            self._encodingDialog.show_all()
-        else:
-            self._encodingDialog.present()
-
     def do_activate( self ):
         self.view.metageditActivatable = self
         self.handlers = set()
@@ -337,22 +313,12 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.contextMenuEntries = set()
         ## BOTTOM MARGIN
         self.view.set_bottom_margin(90)
-        ## LINE OPERATIONS
-        self._sortDialog = SortDialog(self.view)
-        ## ENCODING STUFF
-        self._encodingDialog = EncodingDialog(self.view)
 
     def do_deactivate( self ):
         delattr(self.view, r'metageditActivatable')
         for handler in self.handlers: self.view.disconnect(handler)
         for entry in self.contextMenuEntries: entry.destroy()
         del self.contextMenuEntries
-        ## LINE OPERATIONS
-        self._sortDialog.destroy()
-        del self._sortDialog
-        ## ENCODING STUFF
-        self._encodingDialog.destroy()
-        del self._encodingDialog
 
 
 
