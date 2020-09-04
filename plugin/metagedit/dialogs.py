@@ -26,6 +26,8 @@ from .encodingsAndLanguages import *
 
 
 
+## ENCODING STUFF
+
 class EncodingDialog(Gtk.Window):
 
     def __init__( self, geditView ):
@@ -102,6 +104,8 @@ class EncodingDialog(Gtk.Window):
 
 
 
+## LINE OPERATIONS
+
 class SortDialog(Gtk.Window):
 
     def __init__( self, geditView ):
@@ -173,3 +177,15 @@ class SortDialog(Gtk.Window):
     def _sort( self, widget ):
         sortLines(self.view.get_buffer(), True, self.reverse, self.case, self.dedup, self._getOffset())
         self.hide()
+
+
+
+## SESSIONS
+
+class SaveSessionDialog(Gtk.Window):
+
+    def __init__( self, geditView ):
+        Gtk.Window.__init__(self, title=r'Save Session',
+                                  transient_for=geditView.get_toplevel(),
+                                  resizable=False)
+        pass

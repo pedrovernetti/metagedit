@@ -108,7 +108,23 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         removeTrailingSpaces(document, True)
 
     def _onTabAdded( self, window, tab, data=None ):
-        tab.get_document().connect('save', self._onDocumentSave)
+        tab.get_document().connect(r'save', self._onDocumentSave)
+
+    def _saveSession( self, sessionName=r'._autosavedSession_' ):
+        ## SESSIONS
+        if (self.window.get_active_document() is None): return
+        tabs = self.window.get_active_tab().get_parent().get_children()
+        session = []
+        for tab in tabs:
+            document = tab.get_document()
+            if (document.get_file().get_location() is None): continue
+            session.append(document.get_uri_for_display())
+        try: open(self._sessionsFolder + sessionName, r'w').write('\n'.join(session))
+        except: pass
+
+    def _showSaveSessionDialog
+        #TODO
+
 
     def do_activate( self ):
         self.window.metageditActivatable = self
@@ -134,18 +150,24 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.add_action(shuffleAction)
         ## EXTRA KEYBOARD SHORTCUTS
         self.handlers.add(self.window.connect(r'key-press-event', self._onKeyPressEvent))
-        SwitchTabNextAction = Gio.SimpleAction(name=r'switch-tab-next')
-        SwitchTabNextAction.connect(r'activate', lambda a, p: self._switchTabs(True))
-        self.window.add_action(SwitchTabNextAction)
-        SwitchTabPreviousAction = Gio.SimpleAction(name=r'switch-tab-previous')
-        SwitchTabPreviousAction.connect(r'activate', lambda a, p: self._switchTabs(False))
-        self.window.add_action(SwitchTabPreviousAction)
+        switchTabNextAction = Gio.SimpleAction(name=r'switch-tab-next')
+        switchTabNextAction.connect(r'activate', lambda a, p: self._switchTabs(True))
+        self.window.add_action(switchTabNextAction)
+        switchTabPreviousAction = Gio.SimpleAction(name=r'switch-tab-previous')
+        switchTabPreviousAction.connect(r'activate', lambda a, p: self._switchTabs(False))
+        self.window.add_action(switchTabPreviousAction)
         ## OPEN AS ADMIN
         openAsAdminAction = Gio.SimpleAction(name=r'open-as-admin')
         openAsAdminAction.connect(r'activate', self._openAsAdmin)
         self.window.add_action(openAsAdminAction)
         ## REMOVE TRAILING SPACES
         self.handlers.add(self.window.connect(r'tab-added', self._onTabAdded))
+        ## SESSIONS
+        self._sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
+        if (not os.path.isdir(self._sessionsFolder)): os.mkdir(self._sessionsFolder)
+        saveSessionAction = Gio.SimpleAction(name=r'save-session')
+        saveSessionAction.connect(r'activate', lambda a, p: self._saveSession())
+        self.window.add_action(saveSessionAction)
 
     def do_deactivate( self ):
         delattr(self.window, r'metageditActivatable')
@@ -161,6 +183,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.remove_action(r'switch-tab-next')
         self.window.remove_action(r'switch-tab-previous')
         self.window.remove_action(r'open-as-admin')
+        self.window.remove_action(r'save-session')
 
     def do_update_state( self ):
         pass
@@ -323,6 +346,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self._viewMenu = self.extend_menu(r'view-section')
         self._view2Menu = self.extend_menu(r'view-section-2')
         self._toolsMenu = self.extend_menu(r'tools-section')
+        self._documentsMenu = self.extend_menu(r'documents-section')
         ## OPEN AS ADMIN
         openAsAdminItem = Gio.MenuItem.new("Edit as Administrator...", r'win.open-as-admin')
         self._fileMenu.append_menu_item(openAsAdminItem)
@@ -343,7 +367,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self._originalThemeSettings = self._settings.get_property(r'gtk-application-prefer-dark-theme')
         self._darkThemePrefsFile = os.environ[r'HOME'] + r'/.config/gedit/metagedit-dark-theme'
         darkThemeOn = False
-        if os.path.isfile(self._darkThemePrefsFile):
+        if (os.path.isfile(self._darkThemePrefsFile)):
             try: darkThemeOn = (open(self._darkThemePrefsFile, r'r').read() == r'True')
             except: pass
         self._settings.set_property(r'gtk-application-prefer-dark-theme', darkThemeOn)
@@ -361,8 +385,11 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self._clearKeyboardShortcut(r'app.quit')
           # some examples: r'F1' r'<Primary><Shift><Alt>Page_Down' r'Escape' ...
         ## SESSIONS
-        #sessionsSubmenu = Gio.MenuItem.new_submenu("Sessions", Gio.Menu())
-        #self._editMenu.append_menu_item(sessionsSubmenu)
+        sessionsSubmenu = Gio.Menu()
+        sessionsSubmenuItem = Gio.MenuItem.new_submenu("Sessions", sessionsSubmenu)
+        self._documentsMenu.prepend_menu_item(sessionsSubmenuItem)
+        saveSessionItem = Gio.MenuItem.new("Save Current Session", r'win.save-session')
+        sessionsSubmenu.append_item(saveSessionItem)
 
     def do_deactivate( self ):
         delattr(self.app, r'metageditActivatable')
@@ -371,6 +398,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         del self._editMenu
         del self._viewMenu
         del self._toolsMenu
+        del self._documentsMenu
         ## BOTTOM MARGIN
         for view in self.app.get_views(): view.set_bottom_margin(0)
         self.app.remove_action(r'toggle-bottom-margin')

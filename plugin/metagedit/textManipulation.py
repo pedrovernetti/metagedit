@@ -97,7 +97,9 @@ def removeEmptyLines( document ): #TODO: selection mode inserts trailing newline
                 document.delete(beg, end)
         removeTrailingNewlines(document)
     else: # selection mode
+        beg.backward_char()
         selection = document.get_text(beg, end, False)
+        if (re.match(r'^\s*$', selection, flags=re.MULTILINE)): selection = r''
         selection = re.sub(r'\n\s*\n', r'\n', selection, flags=re.MULTILINE)
         document.delete(beg, end)
         document.insert_at_cursor(selection)
