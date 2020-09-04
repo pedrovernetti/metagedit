@@ -173,7 +173,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.handlers.add(self.window.connect(r'tab-added', self._onTabAdded))
         ## SESSIONS
         self._sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
-        if (not os.path.isdir(self._sessionsFolder)): os.mkdir(self._sessionsFolder)
+        if (not os.path.isdir(self._sessionsFolder)):
+            try: os.mkdir(self._sessionsFolder)
+            except: pass
         self._saveSessionDialog = SaveSessionDialog(self.window)
         saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
         saveSessionAction.connect(r'activate', lambda a, p: self.saveSession())
@@ -390,7 +392,8 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         toggleDarkThemeAction.connect(r'change-state', self._toggleDarkTheme)
         self.app.add_action(toggleDarkThemeAction)
         toggleDarkThemeItem = Gio.MenuItem.new("Prefer Dark Theme", r'app.toggle-dark-theme')
-        self._viewMenu.prepend_menu_item(toggleDarkThemeItem)
+        if (Gtk.get_major_version() > 2): # a way found to test newer gedit interfaces
+            self._viewMenu.prepend_menu_item(toggleDarkThemeItem)
         ## EXTRA KEYBOARD SHORTCUTS
         self._setKeyboardShortcut(r'win.redo', r'<Primary>Y')
         self._setKeyboardShortcut(r'win.goto-line', r'<Primary>G')

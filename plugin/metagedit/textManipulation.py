@@ -18,8 +18,8 @@
 # =============================================================================================
 
 import codecs, random, re
+from unicodedata import normalize as unicodeNormalize, combining as unicodeCombining
 import chardet
-
 
 
 
@@ -185,7 +185,7 @@ def sortLines( document, sort=True, reverse=False, caseSensitive=False, dedup=Fa
 
 
 
-def redecode( document, actualEncoding=r'Autodetect' ):
+def redecode( document, actualEncoding=r'Autodetect', forceASCIIMode=False ):
     ## ENCODING STUFF
     actualEncoding = actualEncoding.strip().replace(r' ', r'_').lower()
     actualEncoding = re.sub (r'^(code[-_]?page|windows)[-_]?', r'cp', actualEncoding)
@@ -202,10 +202,14 @@ def redecode( document, actualEncoding=r'Autodetect' ):
             if (inUseEncoding == actualEncoding): return
     except:
         return
+    text = text.decode(actualEncoding, r'replace')
+    if (forceASCIIMode):
+        text = unicodeNormalize(r'NFKD', text)
+        text = r''.join([c for c in text if not unicodeCombining(c)])
     document.begin_user_action()
     document.delete(document.get_start_iter(), document.get_end_iter())
     try:
-        document.insert(document.get_end_iter(), text.decode(actualEncoding, r'replace'))
+        document.insert(document.get_end_iter(), text)
         document.end_user_action()
     except:
         document.end_user_action()

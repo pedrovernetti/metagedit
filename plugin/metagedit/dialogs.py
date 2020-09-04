@@ -37,7 +37,8 @@ class EncodingDialog(Gtk.Window):
                                   resizable=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
-        self.view = geditView
+        self.window = geditView.get_toplevel()
+        self.previewing = False
         languageStore = Gtk.ListStore(str, str)
         seenLanguages = set()
         for language in iso639.languages.name.values():
@@ -53,54 +54,82 @@ class EncodingDialog(Gtk.Window):
         actualCurrentEncoding = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         actualCurrentEncodingLabel = Gtk.Label(label=r'Treat Current Encoding as:')
         actualCurrentEncoding.pack_start(actualCurrentEncodingLabel, False, True, 10)
-        encodingStore = Gtk.ListStore(str)
-        encodingStore.append([r'Autodetect']) #TODO: set as default
-        for encoding in supportedEncodings():
-            encodingStore.append([encoding])
-        actualCurrentEncodingEntry = Gtk.ComboBox.new_with_model(encodingStore)
-        actualCurrentEncodingEntry.connect(r'changed', self._onEncodingChanged)
+        self.actualCurrentEncodingEntry = Gtk.ComboBox()
+        self._setEncodingCombo()
+        self.actualCurrentEncodingEntry.connect(r'changed', self._onEncodingChanged)
         actualCurrentEncodingText = Gtk.CellRendererText()
-        actualCurrentEncodingEntry.pack_start(actualCurrentEncodingText, True)
-        actualCurrentEncodingEntry.add_attribute(actualCurrentEncodingText, r'text', 0)
-        actualCurrentEncoding.pack_start(actualCurrentEncodingEntry, True, True, 0)
+        self.actualCurrentEncodingEntry.pack_start(actualCurrentEncodingText, True)
+        self.actualCurrentEncodingEntry.add_attribute(actualCurrentEncodingText, r'text', 0)
+        self.actualCurrentEncodingEntry.set_active(0)
+        actualCurrentEncoding.pack_start(self.actualCurrentEncodingEntry, True, True, 0)
         content.pack_start(actualCurrentEncoding, True, False, 5)
-        UTF8Button = Gtk.Button(label=r'Convert to UTF-8')
-        UTF8Button.connect(r'clicked', self._convertEncoding)
-        content.pack_start(UTF8Button, True, True, 5)
-        ASCIIButton = Gtk.Button(label=r'Convert to ASCII (forced)')
+        self.setEncodingButton = Gtk.Button(label=r'Looks Good')
+        self.setEncodingButton.connect(r'clicked', self._setEncoding)
+        content.pack_start(self.setEncodingButton, True, True, 5)
+        ASCIIButton = Gtk.Button(label=r'Agressively Convert to ASCII')
         ASCIIButton.connect(r'clicked', self._toASCIIForced)
         content.pack_start(ASCIIButton, True, True, 5)
+        ASCIIButton.set_sensitive(False) # This functionality needs to be improved
         self.add(content)
+        self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)
-        UTF8Button.grab_focus()
+        self.setEncodingButton.grab_focus()
 
-    def _onLanguageChanged( self, combo ): #TODO: limit encoding combobox options
+    def _onShow( self, widget=None, event=None ):
+        self.setEncodingButton.set_sensitive(False)
+        self.previewing = False
+        self.actualCurrentEncodingEntry.set_active(0)
+
+    def _setEncodingCombo( self, language=r'mul' ):
+        encodingStore = Gtk.ListStore(str)
+        encodingStore.append([r'Autodetect'])
+        seenEncodings = set()
+        for encoding in supportedEncodings(language):
+            encodingNormalized = encoding.casefold().strip()
+            if (encodingNormalized not in seenEncodings):
+                encodingStore.append([encoding])
+                seenEncodings.add(encodingNormalized)
+        if (self.previewing): self.window.get_active_document().undo()
+        self.actualCurrentEncodingEntry.set_model(encodingStore)
+        self.actualCurrentEncodingEntry.set_active(0)
+
+    def _onLanguageChanged( self, combo ):
         i = combo.get_active_iter()
         if (i is not None):
             iso6392B, language = combo.get_model()[i][:2]
-            print("Selected: ISO6392=%s, name=%s" % (iso6392b, language))
+            self._setEncodingCombo(iso6392B)
         else:
             language = re.sub(r'\s+', r' ', combo.get_child().get_text().strip().capitalize())
             if (len(language) < 2): return
             try: iso6392B = iso639.languages.name.get(language).part2b
             except: iso6392B = r'und'
             if (iso6392B in {r'', r'mul', r'und', r'zxx'}): return
-            print("Selected: ISO6392=%s, name=%s" % (iso6392B, language))
+            self._setEncodingCombo(iso6392B)
 
-    def _onEncodingChanged( self, combo ): #TODO: set encoding and preview it (apply -> undo+apply -> undo+apply -> ...)
-        pass
+    def _onEncodingChanged( self, combo ):
+        i = combo.get_active_iter()
+        if (i is not None):
+            encoding = combo.get_model()[i][0]
+            if (self.previewing): self.window.get_active_document().undo()
+            self.previewing = True
+            redecode(self.window.get_active_document(), encoding)
+            self.setEncodingButton.set_sensitive(True)
 
     def _onDestroy( self, widget=None, event=None ):
+        if (self.previewing): self.window.get_active_document().undo()
         self.hide()
         return True
 
-    def _convertEncoding( self, widget ):
-        encoding = self._actualCurrentEncodingEntry.get_text().strip() #TODO: get encoding combobox value
-        redecode(self.view.get_buffer(), encoding)
+    def _setEncoding( self, widget ):
         self.hide()
 
     def _toASCIIForced( self, widget ):
-        pass #TODO: remove diacritics, convert unicode spaces to 0x20, strip other chars, etc., then re-encode
+        if (self.previewing): self.window.get_active_document().undo()
+        i = self.actualCurrentEncodingEntry.get_active_iter()
+        if (i is not None):
+            encoding = self.actualCurrentEncodingEntry.get_model()[i][0]
+            redecode(self.window.get_active_document(), encoding, True)
+        self.hide()
 
 
 
@@ -115,7 +144,7 @@ class SortDialog(Gtk.Window):
         self.reverse = False
         self.dedup = False
         self.case = False
-        self.view = geditView
+        self.window = geditView.get_toplevel()
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         reverseSort = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -162,20 +191,20 @@ class SortDialog(Gtk.Window):
     def _setCase( self, button ):
         self.case = button.get_active()
 
-    def _getOffset( self, button ):
+    def _getOffset( self ):
         offset = self._sortOffsetEntry.get_text().strip()
         return (int(offset) if offset else 0)
 
     def _dedup( self, widget ):
-        sortLines(self.view.get_buffer(), False, self.reverse, self.case, self.dedup, self._getOffset())
+        sortLines(self.window.get_active_document(), False, self.reverse, self.case, self.dedup, self._getOffset())
         self.hide()
 
     def _shuffle( self, widget ):
-        shuffleLines(self.view.get_buffer(), self.case, self.dedup, offset)
+        shuffleLines(self.window.get_active_document(), self.case, self.dedup, offset)
         self.hide()
 
     def _sort( self, widget ):
-        sortLines(self.view.get_buffer(), True, self.reverse, self.case, self.dedup, self._getOffset())
+        sortLines(self.window.get_active_document(), True, self.reverse, self.case, self.dedup, self._getOffset())
         self.hide()
 
 
