@@ -208,20 +208,23 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         delattr(self.window, r'metageditActivatable')
         for handler in self.handlers: self.window.disconnect(handler)
         ## ENCODING STUFF
-        encodingDialog.destroy()
         del encodingDialog
         Gtk.Container.remove(self.window.get_statusbar(), self._encodingStatusLabel)
         del self._encodingStatusLabel
         ## LINE OPERATIONS
-        sortDialog.destroy()
         del sortDialog
         self.window.remove_action(r'encoding-dialog')
         self.window.remove_action(r'remove-line')
         self.window.remove_action(r'sort-dialog')
         self.window.remove_action(r'shuffle')
+        ## EXTRA KEYBOARD SHORTCUTS
         self.window.remove_action(r'switch-tab-next')
         self.window.remove_action(r'switch-tab-previous')
+        ## OPEN AS ADMIN
         self.window.remove_action(r'open-as-admin')
+        ## SESSIONS
+        del saveSessionDialog
+        del manageSessionsDialog
         self.window.remove_action(r'save-session-auto')
         self.window.remove_action(r'save-session-dialog')
         for sessionAction in self._sessionsActions:
@@ -258,7 +261,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingOptionsSubmenu.append(encodingItem)
         fixEncodingItem = Gtk.MenuItem.new_with_mnemonic("Re-Detect Encoding")
         fixEncodingItem.show()
-        fixEncodingItem.connect(r'activate', lambda i: redecode(view.get_buffer()))
+        fixEncodingItem.connect(r'activate', lambda i: redecode(self.view.get_buffer()))
         encodingOptionsSubmenu.append(fixEncodingItem)
         encodingOptions.set_submenu(encodingOptionsSubmenu)
         ## LINE OPERATIONS
@@ -267,27 +270,27 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortOptionsSubmenu = Gtk.Menu()
         joinItem = Gtk.MenuItem.new_with_mnemonic("Join")
         joinItem.show()
-        joinItem.connect(r'activate', lambda i: joinLines(view.get_buffer()))
+        joinItem.connect(r'activate', lambda i: joinLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(joinItem)
         dedupItem = Gtk.MenuItem.new_with_mnemonic("Remove Duplicates")
         dedupItem.show()
-        dedupItem.connect(r'activate', lambda i: sortLines(view.get_buffer(), sort=False, dedup=True))
+        dedupItem.connect(r'activate', lambda i: dedupLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(dedupItem)
         removeEmptyItem = Gtk.MenuItem.new_with_mnemonic("Remove Empty Ones")
         removeEmptyItem.show()
-        removeEmptyItem.connect(r'activate', lambda i: removeEmptyLines(view.get_buffer()))
+        removeEmptyItem.connect(r'activate', lambda i: removeEmptyLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(removeEmptyItem)
         reverseItem = Gtk.MenuItem.new_with_mnemonic("Reverse")
         reverseItem.show()
-        reverseItem.connect(r'activate', lambda i: sortLines(view.get_buffer(), sort=False, reverse=True))
+        reverseItem.connect(r'activate', lambda i: reverseLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(reverseItem)
         shuffleItem = Gtk.MenuItem.new_with_mnemonic("Shuffle")
         shuffleItem.show()
-        shuffleItem.connect(r'activate', lambda i: shuffleLines(view.get_buffer()))
+        shuffleItem.connect(r'activate', lambda i: shuffleLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(shuffleItem)
         sortItem = Gtk.MenuItem.new_with_mnemonic("Sort")
         sortItem.show()
-        sortItem.connect(r'activate', lambda i: sortLines(view.get_buffer()))
+        sortItem.connect(r'activate', lambda i: sortLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(sortItem)
         sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
         sortDialogItem.show()

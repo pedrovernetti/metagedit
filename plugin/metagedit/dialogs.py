@@ -213,15 +213,15 @@ class SortDialog(Gtk.Window):
         return (int(offset) if offset else 0)
 
     def _dedup( self, widget ):
-        sortLines(self.window.get_active_document(), False, self.reverse, self.case, self.dedup, self._getOffset())
+        dedupLines(self.window.get_active_document(), self.case, self._getOffset())
         self.hide()
 
     def _shuffle( self, widget ):
-        shuffleLines(self.window.get_active_document(), self.case, self.dedup, offset)
+        shuffleLines(self.window.get_active_document(), self.dedup, self.case, self._getOffset())
         self.hide()
 
     def _sort( self, widget ):
-        sortLines(self.window.get_active_document(), True, self.reverse, self.case, self.dedup, self._getOffset())
+        sortLines(self.window.get_active_document(), self.reverse, self.dedup, self.case, self._getOffset())
         self.hide()
 
     def setMainWindow( self, window ):

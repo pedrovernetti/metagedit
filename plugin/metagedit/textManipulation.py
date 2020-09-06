@@ -122,7 +122,7 @@ def joinLines( document, separatedWithSpaces=True ):
     beg, end, noneSelected = getSelectedLines(document)
     selection = document.get_text(beg, end, False)
     selection = re.sub(r'\n\s*\n', r'\n', selection, flags=re.MULTILINE).strip()
-    selection = selection.replace("\n", (r' ' if separatedWithSpaces else r''))
+    selection = selection.replace('\n', (r' ' if separatedWithSpaces else r''))
     document.begin_user_action()
     document.delete(beg, end)
     document.insert_at_cursor(selection)
@@ -130,57 +130,87 @@ def joinLines( document, separatedWithSpaces=True ):
 
 
 
-def shuffleLines( document, caseSensitive=False, dedup=False, offset=0 ): #TODO: this whole thing is terrific
+def reverseLines( document ):
     ## LINE OPERATIONS
     beg, end, noneSelected = getSelectedLines(document)
+    if (noneSelected):
+        cursorPosition = document.get_iter_at_mark(document.get_insert())
+        line = document.get_line_count() - (cursorPosition.get_line() + 1)
+        column = cursorPosition.get_line_offset()
     selection = document.get_text(beg, end, False).splitlines()
-
-    if (dedup and (not sort)):
-        seen = set()
-        see = seen.add
-        selection = [line for line in selection if not (line in seen or see(line))]
-    elif (dedup):
-        selection = list(set(selection))
-    if ((not caseSensitive) and (offset > 0)):
-        sortKey = lambda x:(x[offset:]).strip().casefold()
-    elif (not caseSensitive):
-        sortKey = lambda x:x.strip().casefold()
-    elif (offset > 0):
-        sortKey = lambda x:x[offset:]
-    else: sortKey = lambda x:x.strip()
-    random.shuffle(selection)
-
     document.begin_user_action()
     document.delete(beg, end)
-    document.insert_at_cursor("\n".join(selection))
+    document.insert_at_cursor('\n'.join(reversed(selection)))
+    if (noneSelected):
+        document.place_cursor(document.get_iter_at_line_offset(line, column))
     document.end_user_action()
 
 
 
-def sortLines( document, sort=True, reverse=False, caseSensitive=False, dedup=False, offset=0 ): #TODO: this whole thing is terrific
+def _dedupedLines( selection, caseSensitive=True, offset=0 ): #TODO: [selection mode] inserts trailing newlines for some reason
+    ## LINE OPERATIONS
+    finalContent = []
+    seen = set()
+    for line in selection:
+        line_ = line[offset:] if caseSensitive else line[offset:].casefold()
+        if (line_ not in seen):
+            finalContent.append(line)
+            seen.add(line_)
+    return finalContent
+
+
+
+def dedupLines( document, caseSensitive=True, offset=0 ):
+    ## LINE OPERATIONS
+    beg, end, noneSelected = getSelectedLines(document)
+    document.begin_user_action()
+    if (noneSelected): # whole-document mode (doesn't move the cursor)
+        seen = set()
+        for lineNumber in reversed(range(0, document.get_line_count())):
+            beg.set_line(lineNumber)
+            end.set_line(lineNumber)
+            if (not end.ends_line()): end.forward_to_line_end()
+            line = document.get_text(beg, end, False)[offset:]
+            if (not caseSensitive): line = line.casefold()
+            if ((line in seen) or seen.add(line)):
+                end.forward_char()
+                document.delete(beg, end)
+    else: # selection mode
+        selection = document.get_text(beg, end, False).splitlines()
+        document.delete(beg, end)
+        selection = _dedupedLines(selection, caseSensitive, offset)
+        document.insert_at_cursor('\n'.join(selection))
+    document.end_user_action()
+
+
+
+def shuffleLines( document, dedup=False, caseSensitive=True, offset=0 ):
     ## LINE OPERATIONS
     beg, end, noneSelected = getSelectedLines(document)
     selection = document.get_text(beg, end, False).splitlines()
-
-    if (dedup and (not sort)):
-        seen = set()
-        see = seen.add
-        selection = [line for line in selection if not (line in seen or see(line))]
-    elif (dedup):
-        selection = list(set(selection))
-    if ((not caseSensitive) and (offset > 0)):
-        sortKey = lambda x:(x[offset:]).strip().casefold()
-    elif (not caseSensitive):
-        sortKey = lambda x:x.strip().casefold()
-    elif (offset > 0):
-        sortKey = lambda x:x[offset:]
-    else: sortKey = lambda x:x.strip()
-    if (sort): selection = sorted(selection, key=sortKey)
-    if (reverse): selection = reversed(selection)
-
+    if (dedup): selection = _dedupedLines(selection, caseSensitive, offset)
+    random.shuffle(selection)
     document.begin_user_action()
     document.delete(beg, end)
-    document.insert_at_cursor("\n".join(selection))
+    document.insert_at_cursor('\n'.join(selection))
+    document.end_user_action()
+
+
+
+def sortLines( document, reverse=False, dedup=False, caseSensitive=False, offset=0 ):
+    ## LINE OPERATIONS
+    beg, end, noneSelected = getSelectedLines(document)
+    selection = document.get_text(beg, end, False).splitlines()
+    if (dedup): selection = _dedupedLines(selection, caseSensitive, offset)
+    if (not caseSensitive):
+        sortKey = lambda x: re.sub(r'\s+', r'', x[offset:].casefold())
+    else:
+        sortKey = lambda x: re.sub(r'\s+', r'', x[offset:])
+    selection = sorted(selection, key=sortKey)
+    if (reverse): selection = reversed(selection)
+    document.begin_user_action()
+    document.delete(beg, end)
+    document.insert_at_cursor('\n'.join(selection))
     document.end_user_action()
 
 
