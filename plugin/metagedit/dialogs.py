@@ -188,7 +188,6 @@ class SortDialog(Gtk.Window):
         self.case = False
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
-        reverseSort = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         reverseSortToggle = Gtk.CheckButton(active=False, label=r'Reverse Order')
         reverseSortToggle.connect(r'toggled', self._setReverse)
         content.pack_start(reverseSortToggle, True, False, 2)
@@ -238,7 +237,7 @@ class SortDialog(Gtk.Window):
 
     def _getOffset( self ):
         offset = self._sortOffsetEntry.get_text().strip()
-        return (int(offset) if offset else 0)
+        return (int(offset) if re.match(r'^[0-9]+$', offset) else 0)
 
     def _dedup( self, widget ):
         self.window.get_active_document().begin_user_action()
@@ -326,3 +325,101 @@ class ManageSessionsDialog(Gtk.Window): #TODO
     def _saveSession( self, widget ):
         self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
         self.hide()
+
+
+
+## PICK COLOR
+
+class PickColorDialog(Gtk.Window):
+
+    def __init__( self, geditWindow ):
+        Gtk.Window.__init__(self, title=r'Pick Color',
+                                  transient_for=geditWindow,
+                                  resizable=False)
+        self.window = geditWindow
+        self.useAlpha = False
+        self.uppercaseHex = False
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content.set_border_width(10)
+        toggles = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        alphaToggle = Gtk.CheckButton(active=False, label=r'Use Alpha Channel')
+        alphaToggle.connect(r'toggled', self._setAlpha)
+        toggles.pack_start(alphaToggle, True, False, 0)
+        uppercaseHexToggle = Gtk.CheckButton(active=False, label=r'Uppercase Hex Code')
+        uppercaseHexToggle.connect(r'toggled', self._setUppercaseHex)
+        toggles.pack_start(uppercaseHexToggle, True, False, 0)
+        content.pack_start(toggles, True, False, 10)
+        self.colorPicker = Gtk.ColorChooserWidget(show_editor=True)
+        self.colorPicker.set_use_alpha(False)
+        content.pack_start(self.colorPicker, True, True, 5)
+        CMYKScaleRow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        CMYKScaleLabel = Gtk.Label(label='CMYK Scale:')
+        CMYKScaleRow.pack_start(CMYKScaleLabel, False, True, 10)
+        self.CMYKScaleEntry = Gtk.Entry(text=r'100')
+        self.CMYKScaleEntry.set_tooltip_text(r'CMYK Scale')
+        self.CMYKScaleEntry.set_max_length(4)
+        self.CMYKScaleEntry.set_alignment(1.0)
+        CMYKScaleRow.pack_start(self.CMYKScaleEntry, True, True, 5)
+        content.pack_start(CMYKScaleRow, True, True, 10)
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        PickHexButton = Gtk.Button(label=r'Hex Code')
+        PickHexButton.connect(r'clicked', self._pickHex)
+        buttons.pack_start(PickHexButton, True, True, 5)
+        PickRGBButton = Gtk.Button(label=r'RGB(A) Tuple')
+        PickRGBButton.connect(r'clicked', self._pickRGB)
+        buttons.pack_start(PickRGBButton, True, True, 5)
+        PickCMYKButton = Gtk.Button(label=r'CMYK Tuple')
+        PickCMYKButton.connect(r'clicked', self._pickCMYK)
+        buttons.pack_start(PickCMYKButton, True, True, 5)
+        content.pack_start(buttons, True, True, 5)
+        self.add(content)
+        self.connect(r'show', self._onShow)
+        self.connect(r'delete-event', self._onDestroy)
+        self.colorPicker.grab_focus()
+
+    def _onShow( self, widget=None, event=None ):
+        pass
+
+    def _onDestroy( self, widget=None, event=None ):
+        self.hide()
+        return True
+
+    def _setAlpha( self, button ):
+        self.useAlpha = button.get_active()
+        self.colorPicker.set_use_alpha(self.useAlpha)
+
+    def _setUppercaseHex( self, button ):
+        self.uppercaseHex = button.get_active()
+
+    def _pick( self, colorString ):
+        self.window.get_active_document().insert_at_cursor(colorString)
+        self.hide()
+
+    def _pickHex( self, widget ):
+        RGBA = self.colorPicker.get_rgba()
+        colorString = r'#' + hex(round(255 * RGBA.red))[2:]
+        colorString += hex(round(255 * RGBA.green))[2:]
+        colorString += hex(round(255 * RGBA.blue))[2:]
+        if (self.useAlpha): colorString += hex(round(255 * RGBA.alpha))[2:]
+        if (self.uppercaseHex): colorString = colorString.upper()
+        self._pick(colorString)
+
+    def _pickRGB( self, widget ):
+        colorString = self.colorPicker.get_rgba().to_string()
+        self._pick(colorString)
+
+    def _pickCMYK( self, widget ):
+        scale = self.CMYKScaleEntry.get_text().strip()
+        scale = (int(scale) if re.match(r'^[0-9]+$', scale) else 100)
+        RGBA = self.colorPicker.get_rgba()
+        r, g, b = (RGBA.red, RGBA.green, RGBA.blue)
+        if ((r, g, b) == (0, 0, 0)):
+            self._pick(r'cmyk(0,0,0,' + str(scale) + r')')
+        else:
+            c, m, y = ((1 - r), (1 - g), (1 - b))
+            k = min(c, m, y)
+            c, m, y = ((c - k), (m - k), (y - k))
+            c, m, y, k = [round(x * scale) for x in (c, m, y, k)]
+            colorString = r'cmyk(' + str(c) + r',' + str(m) + r','
+            colorString += (str(y) + r',' + str(k) + r')')
+            self._pick(colorString)

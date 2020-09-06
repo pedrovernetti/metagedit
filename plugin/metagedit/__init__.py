@@ -204,6 +204,11 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
         self.window.manageSessionsDialog = ManageSessionsDialog(self.window)
+        ## PICK COLOR
+        self.window.pickColorDialog = PickColorDialog(self.window)
+        pickColorDialogAction = Gio.SimpleAction(name=r'pick-color-dialog')
+        pickColorDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.pickColorDialog))
+        self.window.add_action(pickColorDialogAction)
 
     def do_deactivate( self ):
         delattr(self.window, r'metageditActivatable')
@@ -231,6 +236,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.remove_action(r'save-session-dialog')
         for sessionAction in self._sessionsActions:
             self.window.remove_action(sessionAction)
+        ## PICK COLOR
+        del self.window.pickColorDialog
+        self.window.remove_action(r'pick-color-dialog')
 
     def do_update_state( self ):
         activeDocument = self.window.get_active_document()
@@ -282,6 +290,10 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.percentEncodeDialogItem.show()
         self.percentEncodeDialogItem.connect(r'activate', lambda i: showDialog(self.window.percentEncodeDialog))
         encodingOptionsSubmenu.append(self.percentEncodeDialogItem)
+        self.percentDecodeItem = Gtk.MenuItem.new_with_mnemonic("Percent-Decode")
+        self.percentDecodeItem.show()
+        self.percentDecodeItem.connect(r'activate', lambda i: percentDecode(self.view.get_buffer()))
+        encodingOptionsSubmenu.append(self.percentDecodeItem)
         encodingOptions.set_submenu(encodingOptionsSubmenu)
         ## LINE OPERATIONS
         self.contextMenuEntries.add(sortOptions)
@@ -443,6 +455,9 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
                 itemText = "Load \"" + session + "\" Session"
                 itemAction = r'win.load-session-' + sessionID
                 sessionsSubmenu.append_item(Gio.MenuItem.new(itemText, itemAction))
+        ## PICK COLOR
+        pickColorDialogItem = Gio.MenuItem.new("Pick Color...", r'win.pick-color-dialog')
+        self._toolsMenu.append_menu_item(pickColorDialogItem)
 
     def do_deactivate( self ):
         delattr(self.app, r'metageditActivatable')

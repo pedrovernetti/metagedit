@@ -19,6 +19,7 @@
 
 import codecs, random, re
 from unicodedata import normalize as unicodeNormalize, combining as unicodeCombining
+from urllib.parse import quote as urlquote, unquote as urlunquote
 import chardet
 
 
@@ -232,20 +233,25 @@ def percentEncode( document, doNotEncode=r'' ):
     ## ENCODING STUFF
     beg, end, noneSelected = getSelection(document, False)
     selection = document.get_text(beg, end, False)
-    doNotEncode += r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
-    if (noneSelected and (selection in doNotEncode)): return
+    default = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
+    if (noneSelected and (selection in default)): return
     doNotEncode = doNotEncode.replace(r'%', r'')
-    result = r''
-    for c in selection:
-        if (c in doNotEncode):
-            result += c
-        else:
-            for byte in c.encode('utf-8'):
-                result += (r'%' + hex(byte)[2:].upper().zfill(2))
-    del selection
     document.begin_user_action()
     document.delete(beg, end)
-    document.insert_at_cursor(result)
+    document.insert_at_cursor(urlquote(selection, doNotEncode, r'utf-8', r'ignore'))
+    document.end_user_action()
+
+
+
+def percentDecode( document ):
+    ## ENCODING STUFF
+    beg, end, noneSelected = getSelection(document, False)
+    if (noneSelected): end.forward_chars(2)
+    selection = document.get_text(beg, end, False)
+    if (noneSelected and (not re.match(r'^%[0-9A-Fa-f][0-9A-Fa-f]$', selection))): return
+    document.begin_user_action()
+    document.delete(beg, end)
+    document.insert_at_cursor(urlunquote(selection, r'utf-8', r'replace'))
     document.end_user_action()
 
 
