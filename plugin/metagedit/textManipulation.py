@@ -20,6 +20,7 @@
 import codecs, random, re
 from unicodedata import normalize as unicodeNormalize, combining as unicodeCombining
 from urllib.parse import quote as urlquote, unquote as urlunquote
+from html.entities import codepoint2name as codepoint2html, name2codepoint as html2codepoint
 import chardet
 
 
@@ -226,6 +227,16 @@ def sortLines( document, reverse=False, dedup=False, caseSensitive=False, offset
     document.delete(beg, end)
     document.insert_at_cursor('\n'.join(selection))
     document.end_user_action()
+
+
+
+def htmlEncode( document ):
+    ## ENCODING STUFF
+    beg, end, noneSelected = getSelection(document, False)
+    selection = document.get_text(beg, end, False)
+    #TODO
+    # entity = codepoint2html.get(ord(selection[i]), None)
+    # entity = r'&' + (str(ord(selection[i])) if (entity is None) else entity) + r';'
 
 
 
