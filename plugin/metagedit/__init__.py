@@ -50,7 +50,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         if (self.window.get_active_document() is None): return False
         fileLocation = self.window.get_active_document().get_file().get_location()
         if (fileLocation is None): return False # can't re-open if it was deleted or not yet created
-        elif (r'admin' in fileLocation.get_uri_scheme()): return False # already "as admin"
+        elif (r'file' not in fileLocation.get_uri_scheme()): return False
         else: return True
 
     def _openAsAdmin( self, action, data ):
