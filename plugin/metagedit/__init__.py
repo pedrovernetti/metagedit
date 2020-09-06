@@ -148,21 +148,21 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.handlers.add(self.window.connect(r'active_tab_changed', self._onActiveTabChange))
         self.handlers.add(self.window.connect(r'active_tab_state_changed', self._onActiveTabStateChange))
         ## ENCODING STUFF
-        encodingDialog.setMainWindow(self.window)
-        percentEncodeDialog.setMainWindow(self.window)
+        self.window.encodingDialog = EncodingDialog(self.window)
+        self.window.percentEncodeDialog = PercentEncodeDialog(self.window)
         self._encodingStatusLabel = Gtk.Label(label='\U00002014')
         self.window.get_statusbar().pack_end(self._encodingStatusLabel, False, False, 12)
         self._updateEncodingStatus(self.window.get_active_document())
         encodingAction = Gio.SimpleAction(name=r'encoding-dialog')
-        encodingAction.connect(r'activate', lambda a, p: showDialog(encodingDialog))
+        encodingAction.connect(r'activate', lambda a, p: showDialog(self.window.encodingDialog))
         self.window.add_action(encodingAction)
         ## LINE OPERATIONS
-        sortDialog.setMainWindow(self.window)
+        self.window.sortDialog = SortDialog(self.window)
         removeLineAction = Gio.SimpleAction(name=r'remove-line')
         removeLineAction.connect(r'activate', lambda a, p: removeLines(self.window.get_active_document()))
         self.window.add_action(removeLineAction)
         sortAction = Gio.SimpleAction(name=r'sort-dialog')
-        sortAction.connect(r'activate', lambda a, p: showDialog(sortDialog))
+        sortAction.connect(r'activate', lambda a, p: showDialog(self.window.sortDialog))
         self.window.add_action(sortAction)
         shuffleAction = Gio.SimpleAction(name=r'shuffle')
         shuffleAction.connect(r'activate', lambda a, p: shuffleLines(self.window.get_active_document()))
@@ -199,22 +199,22 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
         saveSessionAction.connect(r'activate', lambda a, p: self.saveSession())
         self.window.add_action(saveSessionAction)
-        saveSessionDialog.setMainWindow(self.window)
+        self.window.saveSessionDialog = SaveSessionDialog(self.window)
         saveSessionDialogAction = Gio.SimpleAction(name=r'save-session-dialog')
-        saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(saveSessionDialog))
+        saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
-        manageSessionsDialog.setMainWindow(self.window)
+        self.window.manageSessionsDialog = ManageSessionsDialog(self.window)
 
     def do_deactivate( self ):
         delattr(self.window, r'metageditActivatable')
         for handler in self.handlers: self.window.disconnect(handler)
         ## ENCODING STUFF
-        del encodingDialog
-        del percentEncodeDialog
+        del self.window.encodingDialog
+        del self.window.percentEncodeDialog
         Gtk.Container.remove(self.window.get_statusbar(), self._encodingStatusLabel)
         del self._encodingStatusLabel
         ## LINE OPERATIONS
-        del sortDialog
+        del self.window.sortDialog
         self.window.remove_action(r'encoding-dialog')
         self.window.remove_action(r'remove-line')
         self.window.remove_action(r'sort-dialog')
@@ -225,8 +225,8 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## OPEN AS ADMIN
         self.window.remove_action(r'open-as-admin')
         ## SESSIONS
-        del saveSessionDialog
-        del manageSessionsDialog
+        del self.window.saveSessionDialog
+        del self.window.manageSessionsDialog
         self.window.remove_action(r'save-session-auto')
         self.window.remove_action(r'save-session-dialog')
         for sessionAction in self._sessionsActions:
@@ -265,7 +265,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingOptionsSubmenu = Gtk.Menu()
         encodingItem = Gtk.MenuItem.new_with_mnemonic("Manually Set Encoding...")
         encodingItem.show()
-        encodingItem.connect(r'activate', lambda i: showDialog(encodingDialog))
+        encodingItem.connect(r'activate', lambda i: showDialog(self.window.encodingDialog))
         encodingOptionsSubmenu.append(encodingItem)
         fixEncodingItem = Gtk.MenuItem.new_with_mnemonic("Redetect Encoding")
         fixEncodingItem.show()
@@ -280,7 +280,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingOptionsSubmenu.append(self.percentEncodeItem)
         self.percentEncodeDialogItem = Gtk.MenuItem.new_with_mnemonic("Percent-Encode with Exceptions...")
         self.percentEncodeDialogItem.show()
-        self.percentEncodeDialogItem.connect(r'activate', lambda i: showDialog(percentEncodeDialog))
+        self.percentEncodeDialogItem.connect(r'activate', lambda i: showDialog(self.window.percentEncodeDialog))
         encodingOptionsSubmenu.append(self.percentEncodeDialogItem)
         encodingOptions.set_submenu(encodingOptionsSubmenu)
         ## LINE OPERATIONS
@@ -289,7 +289,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortOptionsSubmenu = Gtk.Menu()
         sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
         sortDialogItem.show()
-        sortDialogItem.connect(r'activate', lambda i: showDialog(sortDialog))
+        sortDialogItem.connect(r'activate', lambda i: showDialog(self.window.sortDialog))
         sortOptionsSubmenu.append(sortDialogItem)
         joinItem = Gtk.MenuItem.new_with_mnemonic("Join")
         joinItem.show()

@@ -37,12 +37,13 @@ def showDialog( dialog ):
 
 class EncodingDialog(Gtk.Window):
 
-    def __init__( self ):
+    def __init__( self, geditWindow ):
         Gtk.Window.__init__(self, title=r'Set Character Encoding',
+                                  transient_for=geditWindow,
                                   resizable=False)
+        self.window = geditWindow
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
-        self.window = None
         self.previewing = False
         languageStore = Gtk.ListStore(str, str)
         seenLanguages = set()
@@ -81,7 +82,6 @@ class EncodingDialog(Gtk.Window):
         self.setEncodingButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
-        if (self.window is None): return
         self.setEncodingButton.set_sensitive(False)
         self.previewing = False
         self.actualCurrentEncodingEntry.set_active(0)
@@ -137,20 +137,17 @@ class EncodingDialog(Gtk.Window):
             redecode(self.window.get_active_document(), encoding, True)
         self.hide()
 
-    def setMainWindow( self, window ):
-        self.window = window
-        self.set_transient_for(window)
-
 
 
 class PercentEncodeDialog(Gtk.Window):
 
-    def __init__( self ):
+    def __init__( self, geditWindow ):
         Gtk.Window.__init__(self, title=r'Percent-Encoding',
+                                  transient_for=geditWindow,
                                   resizable=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
-        self.window = None
+        self.window = geditWindow
         self.ignoreListEntry = Gtk.Entry(placeholder_text=r'Characters to leave unencoded')
         self.ignoreListEntry.set_tooltip_text(r'Characters to leave unencoded')
         self.ignoreListEntry.set_width_chars(40)
@@ -165,7 +162,7 @@ class PercentEncodeDialog(Gtk.Window):
         encodeButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
-        if (self.window is None): return #TODO hide
+        pass
 
     def _onDestroy( self, widget=None, event=None ):
         self.hide()
@@ -175,28 +172,20 @@ class PercentEncodeDialog(Gtk.Window):
         percentEncode(self.window.get_active_document(), self.ignoreListEntry.get_text())
         self.hide()
 
-    def setMainWindow( self, window ):
-        self.window = window
-        self.set_transient_for(window)
-
-
-
-encodingDialog = EncodingDialog()
-percentEncodeDialog = PercentEncodeDialog()
-
 
 
 ## LINE OPERATIONS
 
 class SortDialog(Gtk.Window):
 
-    def __init__( self ):
+    def __init__( self, geditWindow ):
         Gtk.Window.__init__(self, title=r'Sort Lines',
+                                  transient_for=geditWindow,
                                   resizable=False)
+        self.window = geditWindow
         self.reverse = False
         self.dedup = False
         self.case = False
-        self.window = None
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         reverseSort = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -232,7 +221,7 @@ class SortDialog(Gtk.Window):
         sortButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
-        if (self.window is None): return
+        pass
 
     def _onDestroy( self, widget=None, event=None ):
         self.hide()
@@ -266,24 +255,17 @@ class SortDialog(Gtk.Window):
         sortLines(self.window.get_active_document(), self.reverse, self.dedup, self.case, self._getOffset())
         self.hide()
 
-    def setMainWindow( self, window ):
-        self.window = window
-        self.set_transient_for(window)
-
-
-
-sortDialog = SortDialog()
-
 
 
 ## SESSIONS
 
 class SaveSessionDialog(Gtk.Window):
 
-    def __init__( self ):
+    def __init__( self, geditWindow ):
         Gtk.Window.__init__(self, title=r'Save Session',
+                                  transient_for=geditWindow,
                                   resizable=False)
-        self.window = None
+        self.window = geditWindow
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
@@ -300,7 +282,6 @@ class SaveSessionDialog(Gtk.Window):
         saveButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
-        if (self.window is None): return
         self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
 
     def _onDestroy( self, widget=None, event=None ):
@@ -310,19 +291,16 @@ class SaveSessionDialog(Gtk.Window):
     def _saveSession( self, widget ):
         self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
         self.hide()
-
-    def setMainWindow( self, window ):
-        self.window = window
-        self.set_transient_for(window)
 
 
 
 class ManageSessionsDialog(Gtk.Window): #TODO
 
-    def __init__( self ):
+    def __init__( self, geditWindow ):
         Gtk.Window.__init__(self, title=r'Save Session',
+                                  transient_for=geditWindow,
                                   resizable=False)
-        self.window = None
+        self.window = geditWindow
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
@@ -339,7 +317,6 @@ class ManageSessionsDialog(Gtk.Window): #TODO
         saveButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
-        if (self.window is None): return
         self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
 
     def _onDestroy( self, widget=None, event=None ):
@@ -349,12 +326,3 @@ class ManageSessionsDialog(Gtk.Window): #TODO
     def _saveSession( self, widget ):
         self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
         self.hide()
-
-    def setMainWindow( self, window ):
-        self.window = window
-        self.set_transient_for(window)
-
-
-
-saveSessionDialog = SaveSessionDialog()
-manageSessionsDialog = ManageSessionsDialog()
