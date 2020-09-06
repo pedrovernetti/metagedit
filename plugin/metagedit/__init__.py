@@ -149,6 +149,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.handlers.add(self.window.connect(r'active_tab_state_changed', self._onActiveTabStateChange))
         ## ENCODING STUFF
         encodingDialog.setMainWindow(self.window)
+        percentEncodeDialog.setMainWindow(self.window)
         self._encodingStatusLabel = Gtk.Label(label='\U00002014')
         self.window.get_statusbar().pack_end(self._encodingStatusLabel, False, False, 12)
         self._updateEncodingStatus(self.window.get_active_document())
@@ -209,6 +210,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         for handler in self.handlers: self.window.disconnect(handler)
         ## ENCODING STUFF
         del encodingDialog
+        del percentEncodeDialog
         Gtk.Container.remove(self.window.get_statusbar(), self._encodingStatusLabel)
         del self._encodingStatusLabel
         ## LINE OPERATIONS
@@ -231,7 +233,13 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             self.window.remove_action(sessionAction)
 
     def do_update_state( self ):
-        pass
+        activeDocument = self.window.get_active_document()
+        hasSelection = False if (activeDocument is None) else activeDocument.get_has_selection()
+        activeView = self.window.get_active_view()
+        if (activeView and hasattr(activeView, r'metageditActivatable')):
+            pass #TODO: how to deactivate items on no selection?
+            #activeView.metageditActivatable.percentEncodeItem.set_enabled(hasSelection)
+            #activeView.metageditActivatable.percentEncodeDialogItem.set_enabled(hasSelection)
 
 
 
@@ -250,7 +258,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortOptions = Gtk.MenuItem.new_with_label("Lines")
         sortOptions.show()
         ## ENCODING STUFF
-        encodingOptions = Gtk.MenuItem.new_with_label("Character Encoding")
+        encodingOptions = Gtk.MenuItem.new_with_label("Encoding")
         encodingOptions.show()
         self.contextMenuEntries.add(encodingOptions)
         popup.append(encodingOptions)
@@ -259,15 +267,30 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingItem.show()
         encodingItem.connect(r'activate', lambda i: showDialog(encodingDialog))
         encodingOptionsSubmenu.append(encodingItem)
-        fixEncodingItem = Gtk.MenuItem.new_with_mnemonic("Re-Detect Encoding")
+        fixEncodingItem = Gtk.MenuItem.new_with_mnemonic("Redetect Encoding")
         fixEncodingItem.show()
         fixEncodingItem.connect(r'activate', lambda i: redecode(self.view.get_buffer()))
         encodingOptionsSubmenu.append(fixEncodingItem)
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        encodingOptionsSubmenu.append(separator)
+        self.percentEncodeItem = Gtk.MenuItem.new_with_mnemonic("Percent-Encode")
+        self.percentEncodeItem.show()
+        self.percentEncodeItem.connect(r'activate', lambda i: percentEncode(self.view.get_buffer()))
+        encodingOptionsSubmenu.append(self.percentEncodeItem)
+        self.percentEncodeDialogItem = Gtk.MenuItem.new_with_mnemonic("Percent-Encode with Exceptions...")
+        self.percentEncodeDialogItem.show()
+        self.percentEncodeDialogItem.connect(r'activate', lambda i: showDialog(percentEncodeDialog))
+        encodingOptionsSubmenu.append(self.percentEncodeDialogItem)
         encodingOptions.set_submenu(encodingOptionsSubmenu)
         ## LINE OPERATIONS
         self.contextMenuEntries.add(sortOptions)
         popup.append(sortOptions)
         sortOptionsSubmenu = Gtk.Menu()
+        sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
+        sortDialogItem.show()
+        sortDialogItem.connect(r'activate', lambda i: showDialog(sortDialog))
+        sortOptionsSubmenu.append(sortDialogItem)
         joinItem = Gtk.MenuItem.new_with_mnemonic("Join")
         joinItem.show()
         joinItem.connect(r'activate', lambda i: joinLines(self.view.get_buffer()))
@@ -292,10 +315,6 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortItem.show()
         sortItem.connect(r'activate', lambda i: sortLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(sortItem)
-        sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
-        sortDialogItem.show()
-        sortDialogItem.connect(r'activate', lambda i: showDialog(sortDialog))
-        sortOptionsSubmenu.append(sortDialogItem)
         sortOptions.set_submenu(sortOptionsSubmenu)
         ## REMOVE TRAILING SPACES
         formattingOptions = Gtk.MenuItem.new_with_label("Formatting")
@@ -310,6 +329,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         formattingOptions.set_submenu(formattingOptionsSubmenu)
 
     def do_activate( self ):
+        self.window = self.view.get_toplevel() # deglobalize dialogs
         self.view.metageditActivatable = self
         self.handlers = set()
         self.handlers.add(self.view.connect('populate-popup', self._populateContextMenu))

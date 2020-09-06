@@ -23,6 +23,20 @@ import chardet
 
 
 
+def getSelection( document, noSelectionMeansEverything=True ):
+    if (not document.get_has_selection()):
+        if (noSelectionMeansEverything): # get whole document
+            beg, end = (document.get_start_iter(), document.get_end_iter())
+        else: # get current character
+            beg = document.get_iter_at_mark(document.get_insert())
+            end = document.get_iter_at_mark(document.get_insert())
+            end.forward_char()
+        return (beg, end, True)
+    beg, end = document.get_selection_bounds()
+    return (beg, end, False)
+
+
+
 def getSelectedLines( document, noSelectionMeansEverything=True ):
     if (not document.get_has_selection()):
         if (noSelectionMeansEverything): # get whole document
@@ -67,7 +81,6 @@ def removeTrailingSpaces( document, onSaveMode=False ):
         document.delete(beg, end)
         document.insert_at_cursor(selection)
     document.end_user_action()
-
 
 
 def removeTrailingNewlines( document ):
@@ -160,7 +173,7 @@ def _dedupedLines( selection, caseSensitive=True, offset=0 ): #TODO: [selection 
 
 
 
-def dedupLines( document, caseSensitive=True, offset=0 ):
+def dedupLines( document, caseSensitive=False, offset=0 ):
     ## LINE OPERATIONS
     beg, end, noneSelected = getSelectedLines(document)
     document.begin_user_action()
@@ -184,7 +197,7 @@ def dedupLines( document, caseSensitive=True, offset=0 ):
 
 
 
-def shuffleLines( document, dedup=False, caseSensitive=True, offset=0 ):
+def shuffleLines( document, dedup=False, caseSensitive=False, offset=0 ):
     ## LINE OPERATIONS
     beg, end, noneSelected = getSelectedLines(document)
     selection = document.get_text(beg, end, False).splitlines()
@@ -211,6 +224,28 @@ def sortLines( document, reverse=False, dedup=False, caseSensitive=False, offset
     document.begin_user_action()
     document.delete(beg, end)
     document.insert_at_cursor('\n'.join(selection))
+    document.end_user_action()
+
+
+
+def percentEncode( document, doNotEncode=r'' ):
+    ## ENCODING STUFF
+    beg, end, noneSelected = getSelection(document, False)
+    selection = document.get_text(beg, end, False)
+    doNotEncode += r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
+    if (noneSelected and (selection in doNotEncode)): return
+    doNotEncode = doNotEncode.replace(r'%', r'')
+    result = r''
+    for c in selection:
+        if (c in doNotEncode):
+            result += c
+        else:
+            for byte in c.encode('utf-8'):
+                result += (r'%' + hex(byte)[2:].upper().zfill(2))
+    del selection
+    document.begin_user_action()
+    document.delete(beg, end)
+    document.insert_at_cursor(result)
     document.end_user_action()
 
 

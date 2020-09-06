@@ -143,7 +143,46 @@ class EncodingDialog(Gtk.Window):
 
 
 
+class PercentEncodeDialog(Gtk.Window):
+
+    def __init__( self ):
+        Gtk.Window.__init__(self, title=r'Percent-Encoding',
+                                  resizable=False)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content.set_border_width(10)
+        self.window = None
+        self.ignoreListEntry = Gtk.Entry(placeholder_text=r'Characters to leave unencoded')
+        self.ignoreListEntry.set_tooltip_text(r'Characters to leave unencoded')
+        self.ignoreListEntry.set_width_chars(40)
+        self.ignoreListEntry.set_alignment(0.5)
+        content.pack_start(self.ignoreListEntry, True, True, 5)
+        encodeButton = Gtk.Button(label=r'Encode')
+        encodeButton.connect(r'clicked', self._encode)
+        content.pack_start(encodeButton, True, True, 5)
+        self.add(content)
+        self.connect(r'show', self._onShow)
+        self.connect(r'delete-event', self._onDestroy)
+        encodeButton.grab_focus()
+
+    def _onShow( self, widget=None, event=None ):
+        if (self.window is None): return #TODO hide
+
+    def _onDestroy( self, widget=None, event=None ):
+        self.hide()
+        return True
+
+    def _encode( self, widget ):
+        percentEncode(self.window.get_active_document(), self.ignoreListEntry.get_text())
+        self.hide()
+
+    def setMainWindow( self, window ):
+        self.window = window
+        self.set_transient_for(window)
+
+
+
 encodingDialog = EncodingDialog()
+percentEncodeDialog = PercentEncodeDialog()
 
 
 
@@ -213,7 +252,10 @@ class SortDialog(Gtk.Window):
         return (int(offset) if offset else 0)
 
     def _dedup( self, widget ):
+        self.window.get_active_document().begin_user_action()
         dedupLines(self.window.get_active_document(), self.case, self._getOffset())
+        if (self.reverse): reverseLines(self.window.get_active_document())
+        self.window.get_active_document().end_user_action()
         self.hide()
 
     def _shuffle( self, widget ):
