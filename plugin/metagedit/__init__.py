@@ -331,7 +331,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortOptions = Gtk.MenuItem.new_with_label("Lines")
         sortOptions.show()
         self.contextMenuEntries.add(sortOptions)
-        popup.append(sortOptions)
+        menu.append(sortOptions)
         sortOptionsSubmenu = Gtk.Menu()
         sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
         sortDialogItem.show()
