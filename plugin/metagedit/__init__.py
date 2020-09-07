@@ -20,11 +20,18 @@
 import os
 from datetime import datetime
 import gi
-gi.require_version('Gedit', '3.0')
+gi.require_version(r'Gedit', r'3.0')
+gi.require_version(r'Gtk', r'3.0')
 from gi.repository import GLib, GObject, Gio, Gtk, Gdk, Gedit
 
 from .textManipulation import *
 from .dialogs import *
+
+
+
+settings = Gio.Settings.new(r'org.gnome.gedit.plugins.metagedit')
+## SESSIONS
+sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
 
 
 
@@ -101,7 +108,19 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
     def _onTabAdded( self, window, tab, data=None ):
         tab.get_document().connect(r'save', self._onDocumentSave)
 
-    def saveSession( self, sessionName=r'._autosavedSession_' ):
+    def _onWindowShow( self, window, data=None ):
+        if (len(self.window.get_application().get_windows()) == 1):
+            if (settings.get_value(r'resume-session').get_boolean()):
+                tab = self.window.get_active_tab()
+                if (tab and (tab.get_state() == 0) and (not tab.get_document().get_file())):
+                    self.window.close_tab(tab)
+                self.loadSession()
+
+    def _onQuit( self, application=None, user_data=None ):
+        if (len(self.window.get_application().get_windows()) == 1):
+            self.saveSession()
+
+    def saveSession( self, sessionName=None ):
         ## SESSIONS
         if (self.window.get_active_document() is None): return
         tabs = self.window.get_active_tab().get_parent().get_children()
@@ -116,37 +135,52 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             encoding = r'' if (encoding is None) else encoding.get_charset()
             info = active + '\t' + line + '\t' + column + '\t' + encoding + '\t'
             session.append(info + document.get_uri_for_display())
-        try: open(self._sessionsFolder + sessionName, r'w').write('\n'.join(session))
-        except: pass
+        if (sessionName is None):
+            settings.set_value(r'previous-session', GLib.Variant(r'as', session[1:]))
+        else:
+            try: open(sessionsFolder + sessionName, r'w').write('\n'.join(session))
+            except: pass
 
     def suggestedSessionName( self ):
         ## SESSIONS
         name = self.window.get_active_document().get_short_name_for_display()
         return (name + datetime.now().strftime(r' [%Y-%m-%d %H-%M-%S]'))
 
-    def loadSession( self, sessionName=r'._autosavedSession_' ):
+    def loadSession( self, sessionName=None ):
         ## SESSIONS
-        if (not os.path.isdir(self._sessionsFolder)): return
-        tabs = self.window.get_active_tab().get_parent().get_children()
-        openTabPaths = set([tab.get_document().get_uri_for_display() for tab in tabs])
         try:
-            sessionEntries = open(self._sessionsFolder + sessionName, r'r').read().splitlines()
-            for entry in sessionEntries[1:]:
-                active, line, column, encoding, toOpen = tuple(entry.split('\t', 4))
-                if (toOpen in openTabPaths): continue
-                if (encoding == r''): encoding = None
-                else: encoding = gi.repository.GtkSource.Encoding.get_from_charset(encoding)
-                toOpen = Gio.File.new_for_path(toOpen)
-                self.window.create_tab_from_location(
-                        toOpen, encoding, int(line), int(column), True, (active == r'True'))
+            openTabs = self.window.get_active_tab().get_parent().get_children()
+            openTabs = set([tab.get_document().get_uri_for_display() for tab in openTabs])
+            print(openTabs)
+#            if (len(openTabs) == 1): #TODO: close default initial empty tag
+#                tab = self.window.get_active_tab()
+#                if (tab and (tab.get_state() == 0) and (not tab.get_document().get_file())):
+#                    self.window.close_tab(tab)
         except:
-            pass
+            openTabs = set()
+        if (sessionName is None):
+            sessionEntries = settings.get_value(r'previous-session').get_strv()
+        elif (not os.path.isdir(sessionsFolder)):
+            return
+        else:
+            try: sessionEntries = open(sessionsFolder + sessionName, r'r').read().splitlines()
+            except: return
+        for entry in sessionEntries[1:]:
+            active, line, column, encoding, toOpen = tuple(entry.split('\t', 4))
+            if (toOpen in openTabs): continue
+            if (encoding == r''): encoding = None
+            else: encoding = gi.repository.GtkSource.Encoding.get_from_charset(encoding)
+            toOpen = Gio.File.new_for_path(toOpen)
+            self.window.create_tab_from_location(
+                    toOpen, encoding, int(line), int(column), True, (active == r'True'))
 
     def do_activate( self ):
         self.window.metageditActivatable = self
         self.handlers = set()
         self.handlers.add(self.window.connect(r'active_tab_changed', self._onActiveTabChange))
         self.handlers.add(self.window.connect(r'active_tab_state_changed', self._onActiveTabStateChange))
+        self.handlers.add(self.window.connect(r'show', self._onWindowShow))
+        self.handlers.add(self.window.connect(r'delete-event', self._onQuit))
         ## ENCODING STUFF
         self.window.encodingDialog = EncodingDialog(self.window)
         self.window.percentEncodeDialog = PercentEncodeDialog(self.window)
@@ -182,14 +216,13 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## REMOVE TRAILING SPACES
         self.handlers.add(self.window.connect(r'tab-added', self._onTabAdded))
         ## SESSIONS
-        self._sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
         self._sessionsActions = set()
-        if (not os.path.isdir(self._sessionsFolder)):
-            try: os.mkdir(self._sessionsFolder)
+        if (not os.path.isdir(sessionsFolder)):
+            try: os.mkdir(sessionsFolder)
             except: pass
         else:
-            for session in os.listdir(self._sessionsFolder):
-                try: sessionID = open(self._sessionsFolder + session, 'r').read(14)
+            for session in os.listdir(sessionsFolder):
+                try: sessionID = open(sessionsFolder + session, 'r').read(14)
                 except: continue
                 actionName = r'load-session-' + sessionID
                 self._sessionsActions.add(actionName)
@@ -204,6 +237,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
         self.window.manageSessionsDialog = ManageSessionsDialog(self.window)
+        manageSessionDialogAction = Gio.SimpleAction(name=r'manage-session-dialog')
+        manageSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.manageSessionDialogAction))
+        self.window.add_action(manageSessionDialogAction)
         ## PICK COLOR
         self.window.pickColorDialog = PickColorDialog(self.window)
         pickColorDialogAction = Gio.SimpleAction(name=r'pick-color-dialog')
@@ -234,6 +270,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         del self.window.manageSessionsDialog
         self.window.remove_action(r'save-session-auto')
         self.window.remove_action(r'save-session-dialog')
+        self.window.remove_action(r'manage-session-dialog')
         for sessionAction in self._sessionsActions:
             self.window.remove_action(sessionAction)
         ## PICK COLOR
@@ -341,7 +378,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         formattingOptions.set_submenu(formattingOptionsSubmenu)
 
     def do_activate( self ):
-        self.window = self.view.get_toplevel() # deglobalize dialogs
+        self.window = self.view.get_toplevel()
         self.view.metageditActivatable = self
         self.handlers = set()
         self.handlers.add(self.view.connect('populate-popup', self._populateContextMenu))
@@ -384,12 +421,15 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
     def _toggleDarkTheme( self, action, state ):
         ## DARK THEME SWITCH
         isActive = state.get_boolean()
-        try:
-            open(self._darkThemePrefsFile, r'w').write(str(isActive))
-            self._settings.set_property(r'gtk-application-prefer-dark-theme', isActive)
-            action.set_state(GLib.Variant.new_boolean(isActive))
-        except:
-            pass
+        settings.set_value(r'prefer-dark-theme', GLib.Variant(r'b', isActive))
+        self._settings.set_property(r'gtk-application-prefer-dark-theme', isActive)
+        action.set_state(GLib.Variant.new_boolean(isActive))
+
+    def _toggleResumeSession( self, action, state ):
+        ## SESSIONS
+        isActive = state.get_boolean()
+        settings.set_value(r'resume-session', GLib.Variant(r'b', isActive))
+        action.set_state(GLib.Variant.new_boolean(isActive))
 
     def do_activate( self ):
         self.app.metageditActivatable = self
@@ -419,17 +459,14 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         ## DARK THEME SWITCH
         self._originalThemeSettings = self._settings.get_property(r'gtk-application-prefer-dark-theme')
         self._darkThemePrefsFile = os.environ[r'HOME'] + r'/.config/gedit/metagedit-dark-theme'
-        darkThemeOn = False
-        if (os.path.isfile(self._darkThemePrefsFile)):
-            try: darkThemeOn = (open(self._darkThemePrefsFile, r'r').read() == r'True')
-            except: pass
+        darkThemeOn = settings.get_value(r'prefer-dark-theme').get_boolean()
         self._settings.set_property(r'gtk-application-prefer-dark-theme', darkThemeOn)
         toggleDarkThemeAction = Gio.SimpleAction.new_stateful(
                         r'toggle-dark-theme', None, GLib.Variant.new_boolean(darkThemeOn))
         toggleDarkThemeAction.connect(r'change-state', self._toggleDarkTheme)
         self.app.add_action(toggleDarkThemeAction)
         toggleDarkThemeItem = Gio.MenuItem.new("Prefer Dark Theme", r'app.toggle-dark-theme')
-        if (Gtk.get_major_version() > 2): # a way found to test newer gedit interfaces
+        if (Gtk.get_major_version() > 2): # a way found to test newer gedit interfaces #TODO: exact version?
             self._viewMenu.prepend_menu_item(toggleDarkThemeItem)
         ## EXTRA KEYBOARD SHORTCUTS
         self._setKeyboardShortcut(r'win.redo', r'<Primary>Y')
@@ -444,17 +481,28 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
             self._documentsMenu.prepend_menu_item(sessionsSubmenuItem)
         else:
             self._fileMenu.append_menu_item(sessionsSubmenuItem)
+        resumeSession = settings.get_value(r'resume-session').get_boolean()
+        toggleResumeSessionAction = Gio.SimpleAction.new_stateful(
+                        r'toggle-resume-session', None, GLib.Variant.new_boolean(resumeSession))
+        toggleResumeSessionAction.connect(r'change-state', self._toggleResumeSession)
+        self.app.add_action(toggleResumeSessionAction)
+        toggleResumeSessionItem = Gio.MenuItem.new("Resume Session on Startup", r'app.toggle-resume-session')
+        sessionsSubmenu.append_item(toggleResumeSessionItem)
         saveSessionItem = Gio.MenuItem.new("Save Current Session", r'win.save-session-dialog')
         sessionsSubmenu.append_item(saveSessionItem)
-        #TODO: "Continue from Last Session [ ]", "Replace Current Session on Loading [ ]"
-        sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
+        #TODO: "Replace Current Session on Loading [ ]"
+        loadSessionsSection = Gio.Menu()
+        loadSessionsSectionItem = Gio.MenuItem.new_section("Saved", loadSessionsSection)
+        sessionsSubmenuItem.set_section(loadSessionsSection)
         if (os.path.isdir(sessionsFolder)):
             for session in os.listdir(sessionsFolder):
+                if (session.startswith(r'.')): continue
                 try: sessionID = open(sessionsFolder + session, 'r').read(14)
                 except: continue
-                itemText = "Load \"" + session + "\" Session"
+                itemText = session
                 itemAction = r'win.load-session-' + sessionID
-                sessionsSubmenu.append_item(Gio.MenuItem.new(itemText, itemAction))
+                loadSessionsSection.append_item(Gio.MenuItem.new(itemText, itemAction))
+        sessionsSubmenu.append_item(loadSessionsSectionItem)
         ## PICK COLOR
         pickColorDialogItem = Gio.MenuItem.new("Pick Color...", r'win.pick-color-dialog')
         self._toolsMenu.append_menu_item(pickColorDialogItem)
@@ -480,3 +528,5 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self._clearKeyboardShortcut(r'win.find-next')
         self._clearKeyboardShortcut(r'win.remove-line')
         self._setKeyboardShortcut(r'app.quit', r'<Primary>Q')
+        ## SESSIONS
+        self.app.remove_action(r'toggle-resume-session')
