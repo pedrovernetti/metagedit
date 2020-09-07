@@ -163,9 +163,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         elif (not os.path.isdir(sessionsFolder)):
             return
         else:
-            try: sessionEntries = open(sessionsFolder + sessionName, r'r').read().splitlines()
+            try: sessionEntries = open(sessionsFolder + sessionName, r'r').read().splitlines()[1:]
             except: return
-        for entry in sessionEntries[1:]:
+        for entry in sessionEntries:
             active, line, column, encoding, toOpen = tuple(entry.split('\t', 4))
             if (toOpen in openTabs): continue
             if (encoding == r''): encoding = None
@@ -294,19 +294,12 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
     def __init__( self ):
         GObject.Object.__init__(self)
 
-    def _populateContextMenu( self, view, popup ):
-        if (not isinstance(popup, Gtk.MenuShell)): return
-        separator = Gtk.SeparatorMenuItem()
-        separator.show()
-        self.contextMenuEntries.add(separator)
-        popup.append(separator)
-        sortOptions = Gtk.MenuItem.new_with_label("Lines")
-        sortOptions.show()
+    def _addEncodingOptionsToContextMenu( self, menu ):
         ## ENCODING STUFF
         encodingOptions = Gtk.MenuItem.new_with_label("Encoding")
         encodingOptions.show()
         self.contextMenuEntries.add(encodingOptions)
-        popup.append(encodingOptions)
+        menu.append(encodingOptions)
         encodingOptionsSubmenu = Gtk.Menu()
         encodingItem = Gtk.MenuItem.new_with_mnemonic("Manually Set Encoding...")
         encodingItem.show()
@@ -332,7 +325,11 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.percentDecodeItem.connect(r'activate', lambda i: percentDecode(self.view.get_buffer()))
         encodingOptionsSubmenu.append(self.percentDecodeItem)
         encodingOptions.set_submenu(encodingOptionsSubmenu)
+
+    def _addLineOperationsToContextMenu( self, menu )
         ## LINE OPERATIONS
+        sortOptions = Gtk.MenuItem.new_with_label("Lines")
+        sortOptions.show()
         self.contextMenuEntries.add(sortOptions)
         popup.append(sortOptions)
         sortOptionsSubmenu = Gtk.Menu()
@@ -365,11 +362,22 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortItem.connect(r'activate', lambda i: sortLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(sortItem)
         sortOptions.set_submenu(sortOptionsSubmenu)
+
+    def _populateContextMenu( self, menu ):
+        if (not isinstance(menu, Gtk.MenuShell)): return
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        self.contextMenuEntries.add(separator)
+        menu.append(separator)
+        ## ENCODING STUFF
+        self._addEncodingOptionsToContextMenu(menu)
+        ## LINE OPERATIONS
+        self._addLineOperationsToContextMenu(menu)
         ## REMOVE TRAILING SPACES
         formattingOptions = Gtk.MenuItem.new_with_label("Formatting")
         formattingOptions.show()
         self.contextMenuEntries.add(formattingOptions)
-        popup.append(formattingOptions)
+        menu.append(formattingOptions)
         formattingOptionsSubmenu = Gtk.Menu()
         removeTrailingSpacesItem = Gtk.MenuItem.new_with_mnemonic("Remove Trailing Spaces")
         removeTrailingSpacesItem.show()
@@ -381,7 +389,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.window = self.view.get_toplevel()
         self.view.metageditActivatable = self
         self.handlers = set()
-        self.handlers.add(self.view.connect('populate-popup', self._populateContextMenu))
+        self.handlers.add(self.view.connect('populate-popup', lambda v, p: self._populateContextMenu(p)))
         self.contextMenuEntries = set()
         ## BOTTOM MARGIN
         self.view.set_bottom_margin(90)
