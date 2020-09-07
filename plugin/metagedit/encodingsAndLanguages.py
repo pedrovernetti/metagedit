@@ -18,6 +18,21 @@
 # =============================================================================================
 
 import re
+from locale import getdefaultlocale as getDefaultLocale
+import iso639
+
+
+
+def defaultLanguage():
+    language = iso639.languages.part1.get(getDefaultLocale()[0][:2])
+    return re.sub(r',.*$', r'', language.name)
+
+def defaultLanguageISO6391():
+    return getDefaultLocale()[0][:2]
+
+def defaultLanguageISO6392B():
+    language = iso639.languages.part1.get(getDefaultLocale()[0][:2])
+    return language.part2b
 
 
 

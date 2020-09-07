@@ -296,3 +296,6 @@ def redecode( document, actualEncoding=r'Autodetect', forceASCIIMode=False ):
     except:
         document.end_user_action()
         document.undo()
+
+
+

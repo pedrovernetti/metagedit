@@ -124,7 +124,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## SESSIONS
         if (self.window.get_active_document() is None): return
         tabs = self.window.get_active_tab().get_parent().get_children()
-        session = [datetime.now().strftime(r'%Y%m%d%H%M%S')]
+        session = [datetime.now().strftime(r'%Y%m%d%H%M%S')] # [0] is sessionID
         for tab in tabs:
             document = tab.get_document()
             if (document.get_file().get_location() is None): continue
@@ -139,7 +139,12 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             settings.set_value(r'previous-session', GLib.Variant(r'as', session[1:]))
         else:
             try: open(sessionsFolder + sessionName, r'w').write('\n'.join(session))
-            except: pass
+            except: return
+        self._sessionsActions.add(r'load-session-' + session[0])
+        sessionAction = Gio.SimpleAction(name=(r'load-session-' + session[0]))
+        sessionAction.connect(r'activate', lambda a, p: self.loadSession(sessionName))
+        self.window.add_action(sessionAction)
+        self.window.get_application().metageditActivatable.addSessionToMenu(sessionName, session[0])
 
     def suggestedSessionName( self ):
         ## SESSIONS
@@ -224,9 +229,8 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             for session in os.listdir(sessionsFolder):
                 try: sessionID = open(sessionsFolder + session, 'r').read(14)
                 except: continue
-                actionName = r'load-session-' + sessionID
-                self._sessionsActions.add(actionName)
-                sessionAction = Gio.SimpleAction(name=actionName)
+                self._sessionsActions.add(r'load-session-' + sessionID)
+                sessionAction = Gio.SimpleAction(name=(r'load-session-' + sessionID))
                 sessionAction.connect(r'activate', lambda a, p: self.loadSession(session))
                 self.window.add_action(sessionAction)
         saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
@@ -237,9 +241,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
         self.window.manageSessionsDialog = ManageSessionsDialog(self.window)
-        manageSessionDialogAction = Gio.SimpleAction(name=r'manage-session-dialog')
-        manageSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.manageSessionDialogAction))
-        self.window.add_action(manageSessionDialogAction)
+        manageSessionsDialogAction = Gio.SimpleAction(name=r'manage-sessions-dialog')
+        manageSessionsDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.manageSessionsDialog))
+        self.window.add_action(manageSessionsDialogAction)
         ## PICK COLOR
         self.window.pickColorDialog = PickColorDialog(self.window)
         pickColorDialogAction = Gio.SimpleAction(name=r'pick-color-dialog')
@@ -270,7 +274,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         del self.window.manageSessionsDialog
         self.window.remove_action(r'save-session-auto')
         self.window.remove_action(r'save-session-dialog')
-        self.window.remove_action(r'manage-session-dialog')
+        self.window.remove_action(r'manage-sessions-dialog')
         for sessionAction in self._sessionsActions:
             self.window.remove_action(sessionAction)
         ## PICK COLOR
@@ -369,6 +373,8 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         separator.show()
         self.contextMenuEntries.add(separator)
         menu.append(separator)
+
+
         ## ENCODING STUFF
         self._addEncodingOptionsToContextMenu(menu)
         ## LINE OPERATIONS
@@ -439,6 +445,11 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         settings.set_value(r'resume-session', GLib.Variant(r'b', isActive))
         action.set_state(GLib.Variant.new_boolean(isActive))
 
+    def addSessionToMenu( self, sessionName, sessionID ):
+        if (sessionName.startswith(r'.')): return
+        itemAction = r'win.load-session-' + sessionID
+        self.loadSessionsSection.prepend_item(Gio.MenuItem.new(sessionName, itemAction))
+
     def do_activate( self ):
         self.app.metageditActivatable = self
         self._fileMenu = self.extend_menu(r'file-section')
@@ -498,18 +509,20 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         sessionsSubmenu.append_item(toggleResumeSessionItem)
         saveSessionItem = Gio.MenuItem.new("Save Current Session", r'win.save-session-dialog')
         sessionsSubmenu.append_item(saveSessionItem)
+        manageSessionsItem = Gio.MenuItem.new("Manage Saved Sessions", r'win.manage-sessions-dialog')
+        sessionsSubmenu.append_item(manageSessionsItem)
         #TODO: "Replace Current Session on Loading [ ]"
-        loadSessionsSection = Gio.Menu()
-        loadSessionsSectionItem = Gio.MenuItem.new_section("Saved", loadSessionsSection)
-        sessionsSubmenuItem.set_section(loadSessionsSection)
+        self.loadSessionsSection = Gio.Menu()
+        loadSessionsSectionItem = Gio.MenuItem.new_section("Saved", self.loadSessionsSection)
+        sessionsSubmenuItem.set_section(self.loadSessionsSection)
         if (os.path.isdir(sessionsFolder)):
-            for session in os.listdir(sessionsFolder):
+            sessionSortKey = lambda x: re.sub(r'([^\w]|_)', r'', x.strip().casefold())
+            for session in sorted(os.listdir(sessionsFolder), key=sessionSortKey):
                 if (session.startswith(r'.')): continue
                 try: sessionID = open(sessionsFolder + session, 'r').read(14)
                 except: continue
-                itemText = session
                 itemAction = r'win.load-session-' + sessionID
-                loadSessionsSection.append_item(Gio.MenuItem.new(itemText, itemAction))
+                self.loadSessionsSection.append_item(Gio.MenuItem.new(session, itemAction))
         sessionsSubmenu.append_item(loadSessionsSectionItem)
         ## PICK COLOR
         pickColorDialogItem = Gio.MenuItem.new("Pick Color...", r'win.pick-color-dialog')
