@@ -326,7 +326,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingOptionsSubmenu.append(self.percentDecodeItem)
         encodingOptions.set_submenu(encodingOptionsSubmenu)
 
-    def _addLineOperationsToContextMenu( self, menu )
+    def _addLineOperationsToContextMenu( self, menu ):
         ## LINE OPERATIONS
         sortOptions = Gtk.MenuItem.new_with_label("Lines")
         sortOptions.show()
