@@ -97,6 +97,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
 
     def _onKeyPressEvent( self, window, event ):
         key = Gdk.keyval_name(event.keyval)
+        ## EXTRA KEYBOARD SHORTCUTS
         switchKeys = (r'ISO_Left_Tab', r'Page_Up', r'Tab', r'Page_Down')
         if ((event.state & Gdk.ModifierType.CONTROL_MASK) and (key in switchKeys)):
             self._switchTabs(key in switchKeys[:2])
@@ -109,6 +110,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         tab.get_document().connect(r'save', self._onDocumentSave)
 
     def _onWindowShow( self, window, data=None ):
+        ## SESSIONS
         if (len(self.window.get_application().get_windows()) == 1):
             if (settings.get_value(r'resume-session').get_boolean()):
                 tab = self.window.get_active_tab()
@@ -117,6 +119,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
                 self.loadSession()
 
     def _onQuit( self, application=None, user_data=None ):
+        ## SESSIONS
         if (len(self.window.get_application().get_windows()) == 1):
             self.saveSession()
 
@@ -179,6 +182,17 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             self.window.create_tab_from_location(
                     toOpen, encoding, int(line), int(column), True, (active == r'True'))
 
+    def removeSession( self, sessionName ):
+        ## SESSIONS
+        sessionPath = sessionsFolder + sessionName
+        if (os.path.isfile(sessionPath)):
+            try:
+                ID = open(sessionPath, r'r').read(14)
+                os.remove(sessionPath)
+            except:
+                return
+            self.window.remove_action(r'load-session-' + ID)
+
     def do_activate( self ):
         self.window.metageditActivatable = self
         self.handlers = set()
@@ -227,7 +241,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             except: pass
         else:
             for session in os.listdir(sessionsFolder):
-                try: sessionID = open(sessionsFolder + session, 'r').read(14)
+                try: sessionID = open(sessionsFolder + session, r'r').read(14)
                 except: continue
                 self._sessionsActions.add(r'load-session-' + sessionID)
                 sessionAction = Gio.SimpleAction(name=(r'load-session-' + sessionID))
@@ -445,6 +459,12 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         settings.set_value(r'resume-session', GLib.Variant(r'b', isActive))
         action.set_state(GLib.Variant.new_boolean(isActive))
 
+    def _toggleReplaceCurrentSession( self, action, state ):
+        ## SESSIONS
+        isActive = state.get_boolean()
+        settings.set_value(r'replace-session-on-load', GLib.Variant(r'b', isActive))
+        action.set_state(GLib.Variant.new_boolean(isActive))
+
     def addSessionToMenu( self, sessionName, sessionID ):
         if (sessionName.startswith(r'.')): return
         itemAction = r'win.load-session-' + sessionID
@@ -505,15 +525,21 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
                         r'toggle-resume-session', None, GLib.Variant.new_boolean(resumeSession))
         toggleResumeSessionAction.connect(r'change-state', self._toggleResumeSession)
         self.app.add_action(toggleResumeSessionAction)
+        replaceCurrentSession = settings.get_value(r'replace-session-on-load').get_boolean()
+        toggleReplaceCurrentSessionAction = Gio.SimpleAction.new_stateful(
+                        r'toggle-replace-current-session', None, GLib.Variant.new_boolean(replaceCurrentSession))
+        toggleReplaceCurrentSessionAction.connect(r'change-state', self._toggleReplaceCurrentSession)
+        self.app.add_action(toggleReplaceCurrentSessionAction)
         toggleResumeSessionItem = Gio.MenuItem.new("Resume Session on Startup", r'app.toggle-resume-session')
         sessionsSubmenu.append_item(toggleResumeSessionItem)
+        replaceSessionItem = Gio.MenuItem.new("Replace Session on Loading", r'app.toggle-replace-current-session')
+        sessionsSubmenu.append_item(replaceSessionItem)
         saveSessionItem = Gio.MenuItem.new("Save Current Session", r'win.save-session-dialog')
         sessionsSubmenu.append_item(saveSessionItem)
         manageSessionsItem = Gio.MenuItem.new("Manage Saved Sessions", r'win.manage-sessions-dialog')
         sessionsSubmenu.append_item(manageSessionsItem)
-        #TODO: "Replace Current Session on Loading [ ]"
         self.loadSessionsSection = Gio.Menu()
-        loadSessionsSectionItem = Gio.MenuItem.new_section("Saved", self.loadSessionsSection)
+        loadSessionsSectionItem = Gio.MenuItem.new_section("Saved Sessions", self.loadSessionsSection)
         sessionsSubmenuItem.set_section(self.loadSessionsSection)
         if (os.path.isdir(sessionsFolder)):
             sessionSortKey = lambda x: re.sub(r'([^\w]|_)', r'', x.strip().casefold())
