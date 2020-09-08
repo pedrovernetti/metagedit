@@ -265,20 +265,22 @@ class SaveSessionDialog(Gtk.Window):
                                   transient_for=geditWindow,
                                   resizable=False)
         self.window = geditWindow
+        self.forbiddenCharacters = re.compile(r'[^\w .-]')
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.set_border_width(10)
         self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
         self.sessionNameEntry.set_width_chars(40)
         self.sessionNameEntry.set_max_length(40)
         self.sessionNameEntry.set_alignment(0.5)
+        self.sessionNameEntry.connect(r'insert_text', lambda e, t, l, p: self._sessionNameChanged())
         content.pack_start(self.sessionNameEntry, True, True, 5)
-        saveButton = Gtk.Button(label=r'Save')
-        saveButton.connect(r'clicked', self._saveSession)
-        content.pack_start(saveButton, True, True, 5)
+        self.saveButton = Gtk.Button(label=r'Save')
+        self.saveButton.connect(r'clicked', self._saveSession)
+        content.pack_start(self.saveButton, True, True, 5)
         self.add(content)
         self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)
-        saveButton.grab_focus()
+        self.saveButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
         self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
@@ -286,6 +288,17 @@ class SaveSessionDialog(Gtk.Window):
     def _onDestroy( self, widget=None, event=None ):
         self.hide()
         return True
+
+    def _filterSessionName( self ):
+        name = self.sessionNameEntry.get_text()
+        position = self.sessionNameEntry.get_position()
+        name = (re.sub(self.forbiddenCharacters, r'', name[0:position]),
+                re.sub(self.forbiddenCharacters, r'', name[position:]))
+        self.sessionNameEntry.set_text(r''.join(name))
+        self.sessionNameEntry.set_position(len(name[0]))
+
+    def _sessionNameChanged( self ):
+        GObject.idle_add(self._filterSessionName)
 
     def _saveSession( self, widget ):
         self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
