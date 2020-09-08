@@ -296,7 +296,7 @@ class SaveSessionDialog(Gtk.Window):
 class ManageSessionsDialog(Gtk.Window): #TODO
 
     def __init__( self, geditWindow ):
-        Gtk.Window.__init__(self, title=r'Save Session',
+        Gtk.Window.__init__(self, title=r'Manage Sessions',
                                   transient_for=geditWindow,
                                   resizable=False)
         self.window = geditWindow
@@ -307,13 +307,13 @@ class ManageSessionsDialog(Gtk.Window): #TODO
         self.sessionNameEntry.set_max_length(40)
         self.sessionNameEntry.set_alignment(0.5)
         content.pack_start(self.sessionNameEntry, True, True, 5)
-        saveButton = Gtk.Button(label=r'Save')
-        saveButton.connect(r'clicked', self._saveSession)
-        content.pack_start(saveButton, True, True, 5)
+        removeButton = Gtk.Button(label=r'Remove')
+        removeButton.connect(r'clicked', self._removeSession)
+        content.pack_start(removeButton, True, True, 5)
         self.add(content)
         self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)
-        saveButton.grab_focus()
+        removeButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
         self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
@@ -322,9 +322,8 @@ class ManageSessionsDialog(Gtk.Window): #TODO
         self.hide()
         return True
 
-    def _saveSession( self, widget ):
-        self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
-        self.hide()
+    def _removeSession( self, widget ):
+        self.window.metageditActivatable.removeSession(self.sessionNameEntry.get_text())
 
 
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+    <schema id="org.gnome.gedit.plugins.metagedit" path="/org/gnome/gedit/plugins/metagedit/">
+        <key type="as" name="previous-session">
+            <default>['']</default>
+            <summary>Previous session</summary>
+            <description>A list of the documents to reopen on next Gedit startup.</description>
+        </key>
+        <key type="b" name="resume-session">
+            <default>false</default>
+            <summary>Resume session on startup</summary>
+            <description>Whether to resume the previous session on next Gedit startup.</description>
+        </key>
+        <key type="b" name="replace-session-on-load">
+            <default>false</default>
+            <summary>Replace current session on loading</summary>
+            <description>Whether to replace the current session on loading another one.</description>
+        </key>
+        <key type="b" name="prefer-dark-theme">
+            <default>true</default>
+            <summary>Prefer Dark GTK Theme</summary>
+            <description>Whether to prefer a dark GTK theme for Gedit.</description>
+        </key>
+    </schema>
+</schemalist>
