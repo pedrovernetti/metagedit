@@ -22,6 +22,12 @@ from unicodedata import normalize as unicodeNormalize, combining as unicodeCombi
 from urllib.parse import quote as urlquote, unquote as urlunquote
 from html.entities import codepoint2name as codepoint2html, name2codepoint as html2codepoint
 import chardet
+try:
+    from googletrans import Translator
+    import textwrap
+    translationIsAvailable = True
+except:
+    translationIsAvailable = False
 
 
 
@@ -299,3 +305,26 @@ def redecode( document, actualEncoding=r'Autodetect', forceASCIIMode=False ):
 
 
 
+if (translationIsAvailable):
+    def translate( document, to ):
+        ## TRANSLATE
+        beg, end, noneSelected = getSelection(document)
+        if (noneSelected and (document.get_language() is not None)): return
+        selection = document.get_text(beg, end, False)
+        selection = textwrap.wrap(selection, 14000,
+                expand_tabs=False, replace_whitespace=False, drop_whitespace=False)
+        translator = Translator()
+        result = r''
+        try:
+            for chunk in selection:
+                result += translator.translate(chunk, src=r'auto', dest=to).text
+        except:
+            return
+        document.begin_user_action()
+        document.delete(beg, end)
+        document.insert_at_cursor(result)
+        document.end_user_action()
+else:
+    def translate( document, to ):
+        ## TRANSLATE
+        pass
