@@ -197,7 +197,15 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
 
     def editSession( self, sessionName ):
         ## SESSIONS
-        gfile = Gio.File.new_for_uri(r'file://' + sessionsFolder + sessionName)
+        sessionPath = sessionsFolder + sessionName
+        try: tabs = self.window.get_active_tab().get_parent().get_children()
+        except: tabs = set()
+        for tab in tabs:
+            if (tab.get_document().get_uri_for_display() == sessionPath):
+                self.window.set_active_tab(tab)
+                tab.get_document().set_language(None)
+                return
+        gfile = Gio.File.new_for_uri(r'file://' + sessionPath)
         encoding = gi.repository.GtkSource.Encoding.get_from_charset(r'UTF-8')
         self.window.create_tab_from_location(gfile, encoding, 0, 0, True, True)
         tab = self.window.get_active_tab()
