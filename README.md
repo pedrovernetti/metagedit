@@ -11,10 +11,11 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 ----
 ### Features it Adds
 
-* __Color Picker__: adds a better "Pick Color" dialog accessible via Tools menu;
+* __Color Picker__: adds a better "Pick Color" dialog, accessible via Tools menu;
 * __Dark Theme__: adds a toggle at View menu to enable/disable the GTK dark theme for Gedit;
+* __Document Statistics__: adds a real-time/self-refreshing "Document Statistics" dialog, accessible via Tools menu;
 * __Encoding Operations__: adds functionalities to better auto-detect or manually set the actual encoding of documents and more, all accessible via context menu (dialog for manually setting encoding allows for previewing the effects);
-* __Extra Keyboard Shortcuts__: adds some extra keyboard shortcuts, like ctrl+Y for undoing, ctrl+E for deleting current line (or selected ones) and ctrl+Tab/ctrl+shift+Tab/ctrl+PageDown/ctrl+PageUp to switch tabs;
+* __Extra/New Keyboard Shortcuts__: adds some extra keyboard shortcuts, like ctrl+Y for undoing, ctrl+E for deleting current line (or selected ones) and ctrl+Tab/ctrl+shift+Tab/ctrl+PageDown/ctrl+PageUp to switch tabs;
 * __Line Operations__: adds an improved Sort dialog to Gedit (at Tools menu and context menu) and also some quick linewise sort-like (removing empty lines, sorting, deduplicating, reversing and shuffling) and joining operations to context menu;
 * __Open as Administrator__: adds a File menu option to re-open file as administrator (Root), making it possible to quikcly edit protected file;
 * __Remove Trailing Spaces__: adds a context menu option to remove trailing spaces (incl. trailing newlines when applied to the whole document);

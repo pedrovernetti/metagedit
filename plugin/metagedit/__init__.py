@@ -251,6 +251,11 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         manageSessionsDialogAction = Gio.SimpleAction(name=r'manage-sessions-dialog')
         manageSessionsDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.manageSessionsDialog))
         self.window.add_action(manageSessionsDialogAction)
+        ## DOCUMENT STATS
+        self.window.documentStatsDialog = DocumentStatsDialog(self.window)
+        documentStatsDialogAction = Gio.SimpleAction(name=r'document-stats-dialog')
+        documentStatsDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.documentStatsDialog))
+        self.window.add_action(documentStatsDialogAction)
         ## PICK COLOR
         self.window.pickColorDialog = PickColorDialog(self.window)
         pickColorDialogAction = Gio.SimpleAction(name=r'pick-color-dialog')
@@ -284,6 +289,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.window.remove_action(r'manage-sessions-dialog')
         for sessionAction in self._sessionsActions:
             self.window.remove_action(sessionAction)
+        ## DOCUMENT STATS
+        del self.window.documentStatsDialog
+        self.window.remove_action(r'document-stats-dialog')
         ## PICK COLOR
         del self.window.pickColorDialog
         self.window.remove_action(r'pick-color-dialog')
@@ -550,6 +558,9 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         sessionsSubmenuItem.set_section(self.loadSessionsSection)
         self._populateLoadSessionsSection()
         sessionsSubmenu.append_item(loadSessionsSectionItem)
+        ## DOCUMENT STATS
+        documentStatsDialogItem = Gio.MenuItem.new("Document Statistics", r'win.document-stats-dialog')
+        self._toolsMenu.append_menu_item(documentStatsDialogItem)
         ## PICK COLOR
         pickColorDialogItem = Gio.MenuItem.new("Pick Color...", r'win.pick-color-dialog')
         self._toolsMenu.append_menu_item(pickColorDialogItem)
