@@ -41,7 +41,7 @@ class MetageditDialog(Gtk.Window):
         Gtk.Window.__init__(self, title=title, transient_for=geditWindow, resizable=False)
         self.window = geditWindow
         self.connect(r'delete-event', self._onDestroy)
-        self._content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self._content.set_border_width(10)
         self.add(self._content)
 
@@ -72,7 +72,7 @@ class EncodingDialog(MetageditDialog):
         languageFilterEntry.set_entry_text_column(1)
         languageFilterEntry.set_tooltip_text(r'Filter possible encodings by language')
         languageFilterEntry.get_child().set_placeholder_text(r'Filter possible encodings by language')
-        self.pack(languageFilterEntry, True, False, 5)
+        self.pack(languageFilterEntry, True, False, 0)
         actualCurrentEncoding = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         actualCurrentEncodingLabel = Gtk.Label(label=r'Treat Current Encoding as:')
         actualCurrentEncoding.pack_start(actualCurrentEncodingLabel, False, True, 10)
@@ -84,13 +84,13 @@ class EncodingDialog(MetageditDialog):
         self.actualCurrentEncodingEntry.add_attribute(actualCurrentEncodingText, r'text', 0)
         self.actualCurrentEncodingEntry.set_active(0)
         actualCurrentEncoding.pack_start(self.actualCurrentEncodingEntry, True, True, 0)
-        self.pack(actualCurrentEncoding, True, False, 5)
+        self.pack(actualCurrentEncoding, True, False, 0)
         self.setEncodingButton = Gtk.Button(label=r'Looks Good')
         self.setEncodingButton.connect(r'clicked', self._setEncoding)
-        self.pack(self.setEncodingButton, True, True, 5)
+        self.pack(self.setEncodingButton, True, True, 0)
         ASCIIButton = Gtk.Button(label=r'Agressively Convert to ASCII')
         ASCIIButton.connect(r'clicked', self._toASCIIForced)
-        self.pack(ASCIIButton, True, True, 5)
+        self.pack(ASCIIButton, True, True, 0)
         ASCIIButton.set_sensitive(False) #TODO: This functionality needs to be improved
         self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)
@@ -162,10 +162,10 @@ class PercentEncodeDialog(MetageditDialog):
         self.ignoreListEntry.set_tooltip_text(r'Characters to leave unencoded')
         self.ignoreListEntry.set_width_chars(40)
         self.ignoreListEntry.set_alignment(0.5)
-        self.pack(self.ignoreListEntry, True, True, 5)
+        self.pack(self.ignoreListEntry, True, True, 0)
         encodeButton = Gtk.Button(label=r'Encode')
         encodeButton.connect(r'clicked', self._encode)
-        self.pack(encodeButton, True, True, 5)
+        self.pack(encodeButton, True, True, 0)
         encodeButton.grab_focus()
 
     def _encode( self, widget ):
@@ -183,32 +183,34 @@ class SortDialog(MetageditDialog):
         self.reverse = False
         self.dedup = False
         self.case = False
+        toggles = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         reverseSortToggle = Gtk.CheckButton(active=False, label=r'Reverse Order')
         reverseSortToggle.connect(r'toggled', self._setReverse)
-        self.pack(reverseSortToggle, True, False, 2)
+        toggles.pack_start(reverseSortToggle, True, False, 0)
         dedupSortToggle = Gtk.CheckButton(active=False, label=r'Remove Duplicates')
         dedupSortToggle.connect(r'toggled', self._setDedup)
-        self.pack(dedupSortToggle, True, False, 2)
+        toggles.pack_start(dedupSortToggle, True, False, 0)
         caseSortToggle = Gtk.CheckButton(active=False, label=r'Case-sensitive')
         caseSortToggle.connect(r'toggled', self._setCase)
-        self.pack(caseSortToggle, True, False, 2)
+        toggles.pack_start(caseSortToggle, True, False, 0)
+        self.pack(toggles, True, False, 0)
         sortOffset = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         sortOffsetLabel = Gtk.Label(label='Ignore lines\x27 first N characters:')
         sortOffset.pack_start(sortOffsetLabel, False, True, 10)
-        self._sortOffsetEntry = Gtk.Entry(text=r'0')
-        self._sortOffsetEntry.set_max_width_chars(3)
-        self._sortOffsetEntry.set_width_chars(3)
+        self._sortOffsetEntry = Gtk.SpinButton(value=0, digits=0, numeric=True)
+        self._sortOffsetEntry.set_increments(1, 5)
+        self._sortOffsetEntry.set_range(0, 999)
         sortOffset.pack_start(self._sortOffsetEntry, True, True, 0)
-        self.pack(sortOffset, True, False, 5)
+        self.pack(sortOffset, True, False, 0)
         sortButton = Gtk.Button(label=r'Sort')
         sortButton.connect(r'clicked', self._sort)
-        self.pack(sortButton, True, True, 5)
+        self.pack(sortButton, True, True, 0)
         dedupButton = Gtk.Button(label=r'Remove Duplicates (no sorting)')
         dedupButton.connect(r'clicked', self._dedup)
-        self.pack(dedupButton, True, True, 5)
+        self.pack(dedupButton, True, True, 0)
         shuffleButton = Gtk.Button(label=r'Shuffle')
         shuffleButton.connect(r'clicked', self._shuffle)
-        self.pack(shuffleButton, True, True, 5)
+        self.pack(shuffleButton, True, True, 0)
         sortButton.grab_focus()
 
     def _setReverse( self, button ):
@@ -221,8 +223,7 @@ class SortDialog(MetageditDialog):
         self.case = button.get_active()
 
     def _getOffset( self ):
-        offset = self._sortOffsetEntry.get_text().strip()
-        return (int(offset) if re.match(r'^[0-9]+$', offset) else 0)
+        return self._sortOffsetEntry.get_value_as_int()
 
     def _dedup( self, widget ):
         self.window.get_active_document().begin_user_action()
@@ -243,25 +244,14 @@ class SortDialog(MetageditDialog):
 
 ## SESSIONS
 
-class SaveSessionDialog(MetageditDialog):
+class SessionDialog(MetageditDialog):
 
-    def __init__( self, geditWindow ):
-        MetageditDialog.__init__(self, geditWindow, r'Save Session')
+    def __init__( self, geditWindow, title ):
+        MetageditDialog.__init__(self, geditWindow, title)
         self.forbiddenCharacters = re.compile(r'[^\w .-]')
-        self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
-        self.sessionNameEntry.set_width_chars(40)
+        self.sessionNameEntry = Gtk.Entry()
         self.sessionNameEntry.set_max_length(40)
-        self.sessionNameEntry.set_alignment(0.5)
         self.sessionNameEntry.connect(r'insert_text', lambda e, t, l, p: self._sessionNameChanged())
-        self.pack(self.sessionNameEntry, True, True, 5)
-        self.saveButton = Gtk.Button(label=r'Save')
-        self.saveButton.connect(r'clicked', self._saveSession)
-        self.pack(self.saveButton, True, True, 5)
-        self.connect(r'show', self._onShow)
-        self.saveButton.grab_focus()
-
-    def _onShow( self, widget=None, event=None ):
-        self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
 
     def _filterSessionName( self ):
         name = self.sessionNameEntry.get_text()
@@ -274,16 +264,35 @@ class SaveSessionDialog(MetageditDialog):
     def _sessionNameChanged( self ):
         GObject.idle_add(self._filterSessionName)
 
+
+
+class SaveSessionDialog(SessionDialog):
+
+    def __init__( self, geditWindow ):
+        SessionDialog.__init__(self, geditWindow, r'Save Session')
+        self.sessionNameEntry.set_placeholder_text(r'Session Name')
+        self.sessionNameEntry.set_width_chars(40)
+        self.sessionNameEntry.set_alignment(0.5)
+        self.pack(self.sessionNameEntry, True, True, 0)
+        self.saveButton = Gtk.Button(label=r'Save')
+        self.saveButton.connect(r'clicked', self._saveSession)
+        self.pack(self.saveButton, True, True, 0)
+        self.connect(r'show', self._onShow)
+        self.saveButton.grab_focus()
+
+    def _onShow( self, widget=None, event=None ):
+        self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
+
     def _saveSession( self, widget ):
         self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
         self.hide()
 
 
 
-class ManageSessionsDialog(MetageditDialog): #TODO
+class ManageSessionsDialog(SessionDialog):
 
     def __init__( self, geditWindow, sessionsFolder ):
-        MetageditDialog.__init__(self, geditWindow, r'Manage Sessions')
+        SessionDialog.__init__(self, geditWindow, r'Manage Sessions')
         self.sessionsFolder = sessionsFolder
         self.sessionsList = Gtk.TreeView()
         columnsExpand = (True, False, False)
@@ -299,28 +308,36 @@ class ManageSessionsDialog(MetageditDialog): #TODO
         scrolled.set_max_content_height(600)
         scrolled.set_propagate_natural_width(True)
         scrolled.add(self.sessionsList)
-        self.pack(scrolled, True, True, 5)
-        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.pack(scrolled, True, True, 0)
+        self.buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         buttonsGroup = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
         openButton = Gtk.Button(label=r'Load')
         openButton.connect(r'clicked', self._loadSession)
-        buttons.pack_start(openButton, True, True, 5)
+        self.buttons.pack_start(openButton, True, True, 0)
         buttonsGroup.add_widget(openButton)
-        renameButton = Gtk.ToggleButton(label=r'Rename')
-        renameButton.connect(r'clicked', self._renameSession)
-        buttons.pack_start(renameButton, True, True, 5)
-        buttonsGroup.add_widget(renameButton)
+        self.renameButton = Gtk.ToggleButton(label=r'Rename')
+        self.buttons.pack_start(self.renameButton, True, False, 0)
+        buttonsGroup.add_widget(self.renameButton)
         editButton = Gtk.Button(label=r'Edit')
         editButton.connect(r'clicked', self._editSession)
         editButton.set_tooltip_text(
                 r'Sessions are stored as TSVs, each row being: active_tab, line, column, encoding, file')
-        buttons.pack_start(editButton, True, True, 5)
+        self.buttons.pack_start(editButton, True, True, 0)
         buttonsGroup.add_widget(editButton)
         deleteButton = Gtk.Button(label=r'Delete')
         deleteButton.connect(r'clicked', self._removeSession)
-        buttons.pack_start(deleteButton, True, True, 5)
+        deleteButton.set_tooltip_text(r'⚠️   No confirmation will be asked!')
+        self.buttons.pack_start(deleteButton, True, True, 0)
         buttonsGroup.add_widget(deleteButton)
-        self.pack(buttons, True, True, 5)
+        self.pack(self.buttons, False, True, 0)
+        self.renameSession = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.sessionNameEntry.set_placeholder_text(r'New Session Name')
+        self.renameSession.pack_start(self.sessionNameEntry, True, True, 0)
+        applyNameButton = Gtk.ToggleButton(label=r'Apply')
+        applyNameButton.connect(r'clicked', self._renameSession)
+        self.renameSession.pack_start(applyNameButton, False, True, 0)
+        self.pack(self.renameSession, True, True, 0)
+        self.renameButton.connect(r'clicked', lambda b: self._toggleRename())
         self.connect(r'show', self._onShow)
         self.sessionsList.grab_focus()
         # overwrite with current, save current
@@ -328,6 +345,8 @@ class ManageSessionsDialog(MetageditDialog): #TODO
 
     def _onShow( self, widget=None, event=None ):
         self._updateSessionsList()
+        self.renameButton.set_active(False)
+        self.renameSession.hide()
 
     def _updateSessionsList( self ):
         sessionsStore = Gtk.ListStore(str, int, str)
@@ -345,9 +364,14 @@ class ManageSessionsDialog(MetageditDialog): #TODO
             session = model.get_value(model.get_iter(path), 0)
             self.window.metageditActivatable.loadSession(session)
 
+    def _toggleRename( self ):
+        self.renameSession.set_visible(self.renameButton.get_active())
+
     def _renameSession( self, widget ):
+        self.renameButton.set_active(False)
+        self._toggleRename()
         model, paths = self.sessionsList.get_selection().get_selected_rows()
-        newName = r'' #TODO: pick new name from somewhere
+        newName = self.sessionNameEntry.get_text()
         session = model.get_value(model.get_iter(paths[0]), 0)
         try: rename(self.sessionsFolder + session, self.sessionsFolder + newName)
         except: return
@@ -520,34 +544,34 @@ class PickColorDialog(MetageditDialog):
         uppercaseHexToggle = Gtk.CheckButton(active=False, label=r'Uppercase Hex Code')
         uppercaseHexToggle.connect(r'toggled', self._setUppercaseHex)
         toggles.pack_start(uppercaseHexToggle, True, False, 0)
-        self.pack(toggles, True, False, 10)
+        self.pack(toggles, True, False, 0)
         self.colorPicker = Gtk.ColorChooserWidget(show_editor=True)
         self.colorPicker.set_use_alpha(False)
-        self.pack(self.colorPicker, True, True, 5)
-        CMYKScaleRow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.pack(self.colorPicker, True, True, 0)
+        CMYKScaleRow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         CMYKScaleLabel = Gtk.Label(label='CMYK Scale:')
-        CMYKScaleRow.pack_start(CMYKScaleLabel, False, True, 10)
+        CMYKScaleRow.pack_start(CMYKScaleLabel, False, True, 0)
         self.CMYKScaleEntry = Gtk.Entry(text=r'100')
         self.CMYKScaleEntry.set_tooltip_text(r'CMYK Scale')
         self.CMYKScaleEntry.set_max_length(4)
         self.CMYKScaleEntry.set_alignment(1.0)
-        CMYKScaleRow.pack_start(self.CMYKScaleEntry, True, True, 5)
-        self.pack(CMYKScaleRow, True, True, 10)
-        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        CMYKScaleRow.pack_start(self.CMYKScaleEntry, True, True, 0)
+        self.pack(CMYKScaleRow, True, True, 0)
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         buttonsGroup = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
         PickHexButton = Gtk.Button(label=r'Hex Code')
         PickHexButton.connect(r'clicked', self._pickHex)
-        buttons.pack_start(PickHexButton, True, True, 5)
+        buttons.pack_start(PickHexButton, True, True, 0)
         buttonsGroup.add_widget(PickHexButton)
         PickRGBButton = Gtk.Button(label=r'RGB(A) Tuple')
         PickRGBButton.connect(r'clicked', self._pickRGB)
-        buttons.pack_start(PickRGBButton, True, True, 5)
+        buttons.pack_start(PickRGBButton, True, True, 0)
         buttonsGroup.add_widget(PickRGBButton)
         PickCMYKButton = Gtk.Button(label=r'CMYK Tuple')
         PickCMYKButton.connect(r'clicked', self._pickCMYK)
-        buttons.pack_start(PickCMYKButton, True, True, 5)
+        buttons.pack_start(PickCMYKButton, True, True, 0)
         buttonsGroup.add_widget(PickCMYKButton)
-        self.pack(buttons, True, True, 5)
+        self.pack(buttons, True, True, 0)
         self.colorPicker.grab_focus()
 
     def _setAlpha( self, button ):
