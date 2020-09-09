@@ -18,7 +18,8 @@
 # =============================================================================================
 
 import re
-from os import listdir
+from time import localtime, strftime
+from os import listdir, stat, rename
 import iso639
 from gi.repository import GObject, Gtk, Gedit
 
@@ -281,27 +282,92 @@ class SaveSessionDialog(MetageditDialog):
 
 class ManageSessionsDialog(MetageditDialog): #TODO
 
-    def __init__( self, geditWindow ):
+    def __init__( self, geditWindow, sessionsFolder ):
         MetageditDialog.__init__(self, geditWindow, r'Manage Sessions')
-        self.sessionNameEntry = Gtk.Entry(placeholder_text=r'Session Name')
-        self.sessionNameEntry.set_width_chars(40)
-        self.sessionNameEntry.set_max_length(40)
-        self.sessionNameEntry.set_alignment(0.5)
-        self.pack(self.sessionNameEntry, True, True, 5)
-        removeButton = Gtk.Button(label=r'Remove')
-        removeButton.connect(r'clicked', self._removeSession)
-        self.pack(removeButton, True, True, 5)
+        self.sessionsFolder = sessionsFolder
+        self.sessionsList = Gtk.TreeView()
+        columnsExpand = (True, False, False)
+        for i, columnTitle in enumerate([r'Session', r'Tabs', r'Saved']):
+            renderer = Gtk.CellRendererText()
+            column = Gtk.TreeViewColumn(columnTitle, renderer, text=i)
+            column.set_expand(columnsExpand[i])
+            self.sessionsList.append_column(column)
+        sessionsColumn = Gtk.TreeViewColumn(r'Session', renderer, text=0)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_vexpand(True)
+        scrolled.set_min_content_height(200)
+        scrolled.set_max_content_height(600)
+        scrolled.set_propagate_natural_width(True)
+        scrolled.add(self.sessionsList)
+        self.pack(scrolled, True, True, 5)
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        buttonsGroup = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+        openButton = Gtk.Button(label=r'Load')
+        openButton.connect(r'clicked', self._loadSession)
+        buttons.pack_start(openButton, True, True, 5)
+        buttonsGroup.add_widget(openButton)
+        renameButton = Gtk.ToggleButton(label=r'Rename')
+        renameButton.connect(r'clicked', self._renameSession)
+        buttons.pack_start(renameButton, True, True, 5)
+        buttonsGroup.add_widget(renameButton)
+        editButton = Gtk.Button(label=r'Edit')
+        editButton.connect(r'clicked', self._editSession)
+        editButton.set_tooltip_text(
+                r'Sessions are stored as TSVs, each row being: active_tab, line, column, encoding, file')
+        buttons.pack_start(editButton, True, True, 5)
+        buttonsGroup.add_widget(editButton)
+        deleteButton = Gtk.Button(label=r'Delete')
+        deleteButton.connect(r'clicked', self._removeSession)
+        buttons.pack_start(deleteButton, True, True, 5)
+        buttonsGroup.add_widget(deleteButton)
+        self.pack(buttons, True, True, 5)
         self.connect(r'show', self._onShow)
-        removeButton.grab_focus()
+        self.sessionsList.grab_focus()
+        # overwrite with current, save current
+        # confirm overwritin on saving (if on listdir, confirmdialog)
 
     def _onShow( self, widget=None, event=None ):
-        pass #TODO
+        self._updateSessionsList()
+
+    def _updateSessionsList( self ):
+        sessionsStore = Gtk.ListStore(str, int, str)
+        for session in listdir(self.sessionsFolder):
+            try: tabs = len(open(self.sessionsFolder + session, r'r').read().splitlines())
+            except: continue
+            mtime = localtime(stat(self.sessionsFolder + session).st_mtime)
+            mtime = strftime(r'%Y-%m-%d %H:%M:%S ', mtime)
+            sessionsStore.append([session, tabs, mtime])
+        self.sessionsList.set_model(sessionsStore)
+
+    def _loadSession( self, widget ):
+        model, paths = self.sessionsList.get_selection().get_selected_rows()
+        for path in paths:
+            session = model.get_value(model.get_iter(path), 0)
+            self.window.metageditActivatable.loadSession(session)
 
     def _renameSession( self, widget ):
-        self.window.metageditActivatable.removeSession(self.sessionNameEntry.get_text()) #TODO
+        model, paths = self.sessionsList.get_selection().get_selected_rows()
+        newName = r'' #TODO: pick new name from somewhere
+        session = model.get_value(model.get_iter(paths[0]), 0)
+        try: rename(self.sessionsFolder + session, self.sessionsFolder + newName)
+        except: return
+        self.window.metageditActivatable.removeSession(session)
+        self.window.metageditActivatable.registerSession(newName)
+        self._updateSessionsList()
+        self.window.get_application().metageditActivatable.updateMenuSessions()
+
+    def _editSession( self, widget ):
+        model, paths = self.sessionsList.get_selection().get_selected_rows()
+        for path in paths:
+            session = model.get_value(model.get_iter(path), 0)
+            self.window.metageditActivatable.editSession(session)
 
     def _removeSession( self, widget ):
-        self.window.metageditActivatable.removeSession(self.sessionNameEntry.get_text())
+        model, paths = self.sessionsList.get_selection().get_selected_rows()
+        for path in paths:
+            session = model.get_value(model.get_iter(path), 0)
+            self.window.metageditActivatable.removeSession(session)
+        self._updateSessionsList()
 
 
 
@@ -322,41 +388,41 @@ class DocumentStatsDialog(MetageditDialog):
         content.set_row_spacing(6)
         documentHeaderLabel = Gtk.Label(label=r'Document', xalign=1.0)
         documentHeaderLabel.set_markup(r'<b>Document</b>')
-        content.attach(documentHeaderLabel,3,0,1,1)
+        content.attach(documentHeaderLabel, 3, 0, 1, 1)
         selectionHeaderLabel = Gtk.Label(label=r'Selection', xalign=1.0)
         selectionHeaderLabel.set_markup(r'<b>Selection</b>')
         selectionHeaderLabel.set_tooltip_text(r'Mouse/Touchpad actions are not auto-detected')
-        content.attach(selectionHeaderLabel,4,0,1,1)
+        content.attach(selectionHeaderLabel, 4, 0, 1, 1)
         linesLabel = Gtk.Label(label=r'Lines', xalign=0.0)
-        content.attach(linesLabel,0,1,3,1)
+        content.attach(linesLabel, 0, 1, 3, 1)
         self.lines = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.lines,3,1,1,1)
+        content.attach(self.lines, 3, 1, 1, 1)
         self.selectedLines = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.selectedLines,4,1,1,1)
+        content.attach(self.selectedLines, 4, 1, 1, 1)
         wordsLabel = Gtk.Label(label=r'Words', xalign=0.0)
-        content.attach(wordsLabel,0,2,3,1)
+        content.attach(wordsLabel, 0, 2, 3, 1)
         self.words = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.words,3,2,1,1)
+        content.attach(self.words, 3, 2, 1, 1)
         self.selectedWords = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.selectedWords,4,2,1,1)
+        content.attach(self.selectedWords, 4, 2, 1, 1)
         charactersLabel = Gtk.Label(label=r'Characters (incl. spaces)', xalign=0.0)
-        content.attach(charactersLabel,0,3,3,1)
+        content.attach(charactersLabel, 0, 3, 3, 1)
         self.characters = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.characters,3,3,1,1)
+        content.attach(self.characters, 3, 3, 1, 1)
         self.selectedCharacters = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.selectedCharacters,4,3,1,1)
+        content.attach(self.selectedCharacters, 4, 3, 1, 1)
         charactersNotSpacesLabel = Gtk.Label(label=r'Characters (no spaces)', xalign=0.0)
-        content.attach(charactersNotSpacesLabel,0,4,3,1)
+        content.attach(charactersNotSpacesLabel, 0, 4, 3, 1)
         self.charactersNotSpaces = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.charactersNotSpaces,3,4,1,1)
+        content.attach(self.charactersNotSpaces, 3, 4, 1, 1)
         self.selectedCharactersNotSpaces = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.selectedCharactersNotSpaces,4,4,1,1)
+        content.attach(self.selectedCharactersNotSpaces, 4, 4, 1, 1)
         bytesLabel = Gtk.Label(label=r'UTF-8 Code Units (bytes)', xalign=0.0)
-        content.attach(bytesLabel,0,5,3,1)
+        content.attach(bytesLabel, 0, 5, 3, 1)
         self.bytes = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.bytes,3,5,1,1)
+        content.attach(self.bytes, 3, 5, 1, 1)
         self.selectedBytes = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
-        content.attach(self.selectedBytes,4,5,1,1)
+        content.attach(self.selectedBytes, 4, 5, 1, 1)
         self.pack(content, True, True, 5)
         self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)

@@ -122,7 +122,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         if (len(self.window.get_application().get_windows()) == 1):
             self.saveSession()
 
-    def _registerSession( self, sessionName ):
+    def registerSession( self, sessionName ):
         ## SESSIONS
         sessionActionName = r'load-session-' + sessionName.replace(r' ', r'_')
         self._sessionsActions.add(sessionActionName)
@@ -138,19 +138,20 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         for tab in tabs:
             document = tab.get_document()
             if (document.get_file().get_location() is None): continue
-            active = r'True' if (tab == self.window.get_active_tab()) else r'False'
+            active = r'x' if (tab == self.window.get_active_tab()) else r' '
             line = str(document.get_iter_at_mark(document.get_insert()).get_line() + 1)
             column = str(document.get_iter_at_mark(document.get_insert()).get_line_offset() + 1)
             encoding = document.get_file().get_encoding()
-            encoding = r'' if (encoding is None) else encoding.get_charset()
-            info = active + '\t' + line + '\t' + column + '\t' + encoding + '\t'
+            encoding = (r' ' * 16) if (encoding is None) else encoding.get_charset().ljust(16, r' ')
+            info = active + '\t' + line.ljust(6, r' ') + '\t'
+            info += column.ljust(6, r' ') + '\t' + encoding + '\t'
             session.append(info + document.get_uri_for_display())
         if (sessionName is None):
             settings.set_value(r'previous-session', GLib.Variant(r'as', session))
         else:
             try: open(sessionsFolder + sessionName, r'w').write('\n'.join(session))
             except: return
-            self._registerSession(sessionName)
+            self.registerSession(sessionName)
             self.window.get_application().metageditActivatable.updateMenuSessions()
 
     def suggestedSessionName( self ):
@@ -177,11 +178,13 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         for entry in sessionEntries:
             active, line, column, encoding, toOpen = tuple(entry.split('\t', 4))
             if (toOpen in openTabs): continue
+            active = (active.casefold().strip() in {r'x', r'active', r'true'})
+            encoding = encoding.strip()
             if (encoding == r''): encoding = None
             else: encoding = gi.repository.GtkSource.Encoding.get_from_charset(encoding)
             toOpen = Gio.File.new_for_path(toOpen)
             self.window.create_tab_from_location(
-                    toOpen, encoding, int(line), int(column), True, (active == r'True'))
+                    toOpen, encoding, int(line), int(column), True, active)
 
     def removeSession( self, sessionName ):
         ## SESSIONS
@@ -191,6 +194,14 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             except: return
         self.window.remove_action(r'load-session-' + sessionName.replace(r' ', r'_'))
         self.window.get_application().metageditActivatable.updateMenuSessions()
+
+    def editSession( self, sessionName ):
+        ## SESSIONS
+        gfile = Gio.File.new_for_uri(r'file://' + sessionsFolder + sessionName)
+        encoding = gi.repository.GtkSource.Encoding.get_from_charset(r'UTF-8')
+        self.window.create_tab_from_location(gfile, encoding, 0, 0, True, True)
+        tab = self.window.get_active_tab()
+        tab.get_document().set_language(None)
 
     def do_activate( self ):
         self.window.metageditActivatable = self
@@ -239,7 +250,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             try: os.mkdir(sessionsFolder)
             except: pass
         else:
-            for session in os.listdir(sessionsFolder): self._registerSession(session)
+            for session in os.listdir(sessionsFolder): self.registerSession(session)
         saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
         saveSessionAction.connect(r'activate', lambda a, p: self.saveSession())
         self.window.add_action(saveSessionAction)
@@ -247,7 +258,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         saveSessionDialogAction = Gio.SimpleAction(name=r'save-session-dialog')
         saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
-        self.window.manageSessionsDialog = ManageSessionsDialog(self.window)
+        self.window.manageSessionsDialog = ManageSessionsDialog(self.window, sessionsFolder)
         manageSessionsDialogAction = Gio.SimpleAction(name=r'manage-sessions-dialog')
         manageSessionsDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.manageSessionsDialog))
         self.window.add_action(manageSessionsDialogAction)
