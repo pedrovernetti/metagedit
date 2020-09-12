@@ -246,8 +246,9 @@ class SortDialog(MetageditDialog):
 
 class SessionDialog(MetageditDialog):
 
-    def __init__( self, geditWindow, title ):
+    def __init__( self, geditWindow, title, sessionsFolder ):
         MetageditDialog.__init__(self, geditWindow, title)
+        self.sessionsFolder = sessionsFolder
         self.forbiddenCharacters = re.compile(r'[^\w .-]')
         self.sessionNameEntry = Gtk.Entry()
         self.sessionNameEntry.set_max_length(40)
@@ -268,8 +269,8 @@ class SessionDialog(MetageditDialog):
 
 class SaveSessionDialog(SessionDialog):
 
-    def __init__( self, geditWindow ):
-        SessionDialog.__init__(self, geditWindow, r'Save Session')
+    def __init__( self, geditWindow, sessionsFolder ):
+        SessionDialog.__init__(self, geditWindow, r'Save Session', sessionsFolder)
         self.sessionNameEntry.set_placeholder_text(r'Session Name')
         self.sessionNameEntry.set_width_chars(40)
         self.sessionNameEntry.set_alignment(0.5)
@@ -284,7 +285,9 @@ class SaveSessionDialog(SessionDialog):
         self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
 
     def _saveSession( self, widget ):
-        self.window.metageditActivatable.saveSession(self.sessionNameEntry.get_text())
+        session = self.sessionNameEntry.get_text()
+        if (session in listdir(self.sessionsFolder)): return
+        self.window.metageditActivatable.saveSession(session)
         self.hide()
 
 
@@ -292,8 +295,7 @@ class SaveSessionDialog(SessionDialog):
 class ManageSessionsDialog(SessionDialog):
 
     def __init__( self, geditWindow, sessionsFolder ):
-        SessionDialog.__init__(self, geditWindow, r'Manage Sessions')
-        self.sessionsFolder = sessionsFolder
+        SessionDialog.__init__(self, geditWindow, r'Manage Sessions', sessionsFolder)
         self.sessionsList = Gtk.TreeView()
         columnsExpand = (True, False, False)
         for i, columnTitle in enumerate([r'Session', r'Tabs', r'Saved']):
@@ -316,6 +318,7 @@ class ManageSessionsDialog(SessionDialog):
         self.buttons.pack_start(openButton, True, True, 0)
         buttonsGroup.add_widget(openButton)
         self.renameButton = Gtk.ToggleButton(label=r'Rename')
+        self.renameButton.connect(r'toggled', lambda b: self._toggleRename())
         self.buttons.pack_start(self.renameButton, True, False, 0)
         buttonsGroup.add_widget(self.renameButton)
         editButton = Gtk.Button(label=r'Edit')
@@ -333,15 +336,13 @@ class ManageSessionsDialog(SessionDialog):
         self.renameSession = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.sessionNameEntry.set_placeholder_text(r'New Session Name')
         self.renameSession.pack_start(self.sessionNameEntry, True, True, 0)
-        applyNameButton = Gtk.ToggleButton(label=r'Apply')
+        applyNameButton = Gtk.Button(label=r'Apply')
         applyNameButton.connect(r'clicked', self._renameSession)
         self.renameSession.pack_start(applyNameButton, False, True, 0)
         self.pack(self.renameSession, True, True, 0)
-        self.renameButton.connect(r'clicked', lambda b: self._toggleRename())
         self.connect(r'show', self._onShow)
         self.sessionsList.grab_focus()
         # overwrite with current, save current
-        # confirm overwritin on saving (if on listdir, confirmdialog)
 
     def _onShow( self, widget=None, event=None ):
         self._updateSessionsList()
@@ -368,10 +369,9 @@ class ManageSessionsDialog(SessionDialog):
         self.renameSession.set_visible(self.renameButton.get_active())
 
     def _renameSession( self, widget ):
-        self.renameButton.set_active(False)
-        self._toggleRename()
         model, paths = self.sessionsList.get_selection().get_selected_rows()
         newName = self.sessionNameEntry.get_text()
+        if (newName in listdir(self.sessionsFolder)): return
         session = model.get_value(model.get_iter(paths[0]), 0)
         try: rename(self.sessionsFolder + session, self.sessionsFolder + newName)
         except: return
@@ -379,6 +379,8 @@ class ManageSessionsDialog(SessionDialog):
         self.window.metageditActivatable.registerSession(newName)
         self._updateSessionsList()
         self.window.get_application().metageditActivatable.updateMenuSessions()
+        self.renameButton.set_active(False)
+        self._toggleRename()
 
     def _editSession( self, widget ):
         model, paths = self.sessionsList.get_selection().get_selected_rows()
@@ -415,7 +417,6 @@ class DocumentStatsDialog(MetageditDialog):
         content.attach(documentHeaderLabel, 3, 0, 1, 1)
         selectionHeaderLabel = Gtk.Label(label=r'Selection', xalign=1.0)
         selectionHeaderLabel.set_markup(r'<b>Selection</b>')
-        selectionHeaderLabel.set_tooltip_text(r'Mouse/Touchpad actions are not auto-detected')
         content.attach(selectionHeaderLabel, 4, 0, 1, 1)
         linesLabel = Gtk.Label(label=r'Lines', xalign=0.0)
         content.attach(linesLabel, 0, 1, 3, 1)
@@ -448,6 +449,8 @@ class DocumentStatsDialog(MetageditDialog):
         self.selectedBytes = Gtk.Label(label=r'-', xalign=1.0, selectable=True)
         content.attach(self.selectedBytes, 4, 5, 1, 1)
         self.pack(content, True, True, 5)
+        self.connect(r'focus-in-event', lambda e, d: self._updateSelection())
+        self.connect(r'focus-out-event', lambda e, d: self._updateSelection())
         self.connect(r'show', self._onShow)
         self.connect(r'delete-event', self._onDestroy)
         content.grab_focus()
