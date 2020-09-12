@@ -17,7 +17,7 @@
 # #  In order to have this script working (if it is currently not), run 'install.sh'.
 # =============================================================================================
 
-import os, time
+import os
 import gi
 gi.require_version(r'Gedit', r'3.0')
 gi.require_version(r'Gtk', r'3.0')
@@ -149,7 +149,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         if (sessionName is None):
             settings.set_value(r'previous-session', GLib.Variant(r'as', session))
         else:
-            try: open(sessionsFolder + sessionName, r'w').write('\n'.join(session))
+            try: open(sessionsFolder + sessionName, r'x').write('\n'.join(session))
             except: return
             self.registerSession(sessionName)
             self.window.get_application().metageditActivatable.updateMenuSessions()
@@ -262,7 +262,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         saveSessionAction = Gio.SimpleAction(name=r'save-session-auto')
         saveSessionAction.connect(r'activate', lambda a, p: self.saveSession())
         self.window.add_action(saveSessionAction)
-        self.window.saveSessionDialog = SaveSessionDialog(self.window)
+        self.window.saveSessionDialog = SaveSessionDialog(self.window, sessionsFolder)
         saveSessionDialogAction = Gio.SimpleAction(name=r'save-session-dialog')
         saveSessionDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.saveSessionDialog))
         self.window.add_action(saveSessionDialogAction)
@@ -495,7 +495,6 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
                 sessions.append((int(os.path.getmtime(sessionsFolder + session)), session))
             for session in reversed(sorted(sessions)):
                 action = r'win.load-session-' + session[1].replace(r' ', r'_')
-                #label = time.strftime(r'[%x %H:%M:%S] ', time.localtime(session[0])) + session[1]
                 label = session[1]
                 self.loadSessionsSection.append_item(Gio.MenuItem.new(label, action))
 
