@@ -1,4 +1,3 @@
-#coding=utf-8
 
 # =============================================================================================
 # This program is free software: you can redistribute it and/or modify it under the terms of
@@ -282,7 +281,8 @@ class SaveSessionDialog(SessionDialog):
         self.saveButton.grab_focus()
 
     def _onShow( self, widget=None, event=None ):
-        self.sessionNameEntry.set_text(self.window.metageditActivatable.suggestedSessionName())
+        self.sessionNameEntry.set_text(
+                self.window.get_active_document().get_short_name_for_display())
 
     def _saveSession( self, widget ):
         session = self.sessionNameEntry.get_text()
@@ -324,7 +324,8 @@ class ManageSessionsDialog(SessionDialog):
         editButton = Gtk.Button(label=r'Edit')
         editButton.connect(r'clicked', self._editSession)
         editButton.set_tooltip_text(
-                r'Sessions are stored as TSVs, each row being: active_tab, line, column, encoding, file')
+                r'Sessions are stored as TSVs, each row being: \
+                <active tab>, <line>, <column>, <encoding>, <file URI>')
         self.buttons.pack_start(editButton, True, True, 0)
         buttonsGroup.add_widget(editButton)
         deleteButton = Gtk.Button(label=r'Delete')
