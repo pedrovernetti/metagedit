@@ -1,4 +1,3 @@
-#coding=utf-8
 
 # =============================================================================================
 # This program is free software: you can redistribute it and/or modify it under the terms of
@@ -18,6 +17,7 @@
 # =============================================================================================
 
 import os
+from time import time as nowTime
 import gi
 gi.require_version(r'Gedit', r'3.0')
 gi.require_version(r'Gtk', r'3.0')
@@ -55,7 +55,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## OPEN AS ADMIN
         if (self.window.get_active_document() is None): return False
         fileLocation = self.window.get_active_document().get_file().get_location()
-        if (fileLocation is None): return False # can't re-open if it was deleted or not yet created
+        if ((fileLocation is None) or (fileLocation.get_uri_scheme() is None)): return False
         elif (r'file' not in fileLocation.get_uri_scheme()): return False
         else: return True
 
@@ -81,18 +81,27 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         elif (i >= tabCount): i = 0
         self.window.set_active_tab(tabs[i])
 
+    def _closeTabIfJunk( self, tab ):
+        if ((tab is None) or (tab.get_state() != 0)): return
+        document = tab.get_document()
+        if (document.get_file().get_location() is not None): return
+        if ((document.can_undo()) or (document.can_redo())): return
+        #content = document.get_text(document.get_start_iter(), document.get_end_iter(), False)
+        #if (re.match(r'[^\s]', content)): return # tab has some content
+        GObject.idle_add(self.window.close_tab, tab)
+
     def _onActiveTabChange( self, window, tab ):
         ## ENCODING STUFF
         self._updateEncodingStatus(tab.get_document())
         ## OPEN AS ADMIN
-        self.window.lookup_action('open-as-admin').set_enabled(self._allowOpenAsAdmin())
+        self.window.lookup_action(r'open-as-admin').set_enabled(self._allowOpenAsAdmin())
 
     def _onActiveTabStateChange( self, window ):
         ## ENCODING STUFF
         if Gedit.TabState.STATE_NORMAL == window.get_active_tab().get_state():
             self._updateEncodingStatus(self.window.get_active_document())
         ## OPEN AS ADMIN
-        self.window.lookup_action('open-as-admin').set_enabled(self._allowOpenAsAdmin())
+        self.window.lookup_action(r'open-as-admin').set_enabled(self._allowOpenAsAdmin())
 
     def _onKeyPressEvent( self, window, event ):
         key = Gdk.keyval_name(event.keyval)
@@ -107,18 +116,27 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
 
     def _onTabAdded( self, window, tab, data=None ):
         tab.get_document().connect(r'save', self._onDocumentSave)
+        ## SESSIONS
+        if (self._resumedSessionTime > (nowTime() - 2)): self._closeTabIfJunk(tab)
+        else: self.saveSession()
+
+    def _onTabRemoved( self, window, tab, data=None ):
+        ## SESSIONS
+        if (not self._quitting): self.saveSession()
+
+    def _onTabsReordered( self, window, tab, data=None ):
+        ## SESSIONS
+        self.saveSession()
 
     def _onWindowShow( self, window, data=None ):
         ## SESSIONS
         if (len(self.window.get_application().get_windows()) == 1):
             if (settings.get_value(r'resume-session').get_boolean()):
-                tab = self.window.get_active_tab()
-                if (tab and (tab.get_state() == 0) and (not tab.get_document().get_file())):
-                    self.window.close_tab(tab)
                 self.loadSession()
 
     def _onQuit( self, application=None, user_data=None ):
         ## SESSIONS
+        self._quitting = True
         if (len(self.window.get_application().get_windows()) == 1):
             self.saveSession()
 
@@ -145,8 +163,10 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             encoding = (r' ' * 16) if (encoding is None) else encoding.get_charset().ljust(16, r' ')
             info = active + '\t' + line.ljust(6, r' ') + '\t'
             info += column.ljust(6, r' ') + '\t' + encoding + '\t'
-            session.append(info + document.get_uri_for_display())
+            session.append(info + re.sub(r'^/', r'file:///', document.get_uri_for_display()))
         if (sessionName is None):
+            session = [re.sub(r'^(.*?) *(\t.*?) *(\t.*?) *(\t.*?) *(\t.+)$', r'\1\2\3\4\5', entry)
+                        for entry in session]
             settings.set_value(r'previous-session', GLib.Variant(r'as', session))
         else:
             try: open(sessionsFolder + sessionName, r'x').write('\n'.join(session))
@@ -154,27 +174,24 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             self.registerSession(sessionName)
             self.window.get_application().metageditActivatable.updateMenuSessions()
 
-    def suggestedSessionName( self ):
-        ## SESSIONS
-        return self.window.get_active_document().get_short_name_for_display()
-
     def loadSession( self, sessionName=None ):
         ## SESSIONS
         if (sessionName is None):
             sessionEntries = settings.get_value(r'previous-session').get_strv()
+            self._resumedSessionTime = nowTime()
         else:
             try: sessionEntries = open(sessionsFolder + sessionName, r'r').read().splitlines()
             except: return
+        openTabs = set()
         if (settings.get_value(r'replace-session-on-load').get_boolean()):
             self.window.close_all_tabs()
-        openTabs = set()
-        try: openTabs = self.window.get_active_tab().get_parent().get_children()
-        except: pass
-        openTabs = set([tab.get_document().get_uri_for_display() for tab in openTabs])
-#        if (len(openTabs) == 1): #TODO: close default initial empty tag
-#            tab = self.window.get_active_tab()
-#            if (tab and (tab.get_state() == 0) and (not tab.get_document().get_file())):
-#                self.window.close_tab(tab)
+        elif (self.window.get_active_tab() is not None):
+            for tab in self.window.get_active_tab().get_parent().get_children():
+                self._closeTabIfJunk(tab)
+            openTabs = self.window.get_active_tab().get_parent().get_children()
+            openTabs = [tab.get_document().get_uri_for_display() for tab in openTabs]
+            openTabs = set([re.sub(r'^/', r'file:///', tab) for tab in openTabs])
+        #if (len(openTabs) == 1): self._closeTabIfJunk(self.window.get_active_tab())
         for entry in sessionEntries:
             active, line, column, encoding, toOpen = tuple(entry.split('\t', 4))
             if (toOpen in openTabs): continue
@@ -182,7 +199,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             encoding = encoding.strip()
             if (encoding == r''): encoding = None
             else: encoding = gi.repository.GtkSource.Encoding.get_from_charset(encoding)
-            toOpen = Gio.File.new_for_path(toOpen)
+            toOpen = Gio.File.new_for_uri(toOpen)
             self.window.create_tab_from_location(
                     toOpen, encoding, int(line), int(column), True, active)
 
@@ -218,6 +235,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self.handlers.add(self.window.connect(r'active_tab_state_changed', self._onActiveTabStateChange))
         self.handlers.add(self.window.connect(r'show', self._onWindowShow))
         self.handlers.add(self.window.connect(r'delete-event', self._onQuit))
+        self.handlers.add(self.window.connect(r'tab-added', self._onTabAdded))
+        self.handlers.add(self.window.connect(r'tab-removed', self._onTabRemoved))
+        self.handlers.add(self.window.connect(r'tabs-reordered', self._onTabsReordered))
         ## ENCODING STUFF
         self.window.encodingDialog = EncodingDialog(self.window)
         self.window.percentEncodeDialog = PercentEncodeDialog(self.window)
@@ -250,9 +270,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         openAsAdminAction = Gio.SimpleAction(name=r'open-as-admin')
         openAsAdminAction.connect(r'activate', self._openAsAdmin)
         self.window.add_action(openAsAdminAction)
-        ## REMOVE TRAILING SPACES
-        self.handlers.add(self.window.connect(r'tab-added', self._onTabAdded))
         ## SESSIONS
+        self._resumedSessionTime = 0
+        self._quitting = False
         self._sessionsActions = set()
         if (not os.path.isdir(sessionsFolder)):
             try: os.mkdir(sessionsFolder)
@@ -538,7 +558,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         toggleDarkThemeAction.connect(r'change-state', self._toggleDarkTheme)
         self.app.add_action(toggleDarkThemeAction)
         toggleDarkThemeItem = Gio.MenuItem.new("Prefer Dark Theme", r'app.toggle-dark-theme')
-        if (Gtk.get_major_version() > 2): # a way found to test newer gedit interfaces #TODO: exact version?
+        if (Gtk.get_major_version() > 2):
             self._viewMenu.prepend_menu_item(toggleDarkThemeItem)
         ## EXTRA KEYBOARD SHORTCUTS
         self._setKeyboardShortcut(r'win.redo', r'<Primary>Y')
