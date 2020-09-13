@@ -124,7 +124,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## SESSIONS
         if (not self._quitting): self.saveSession()
 
-    def _onTabsReordered( self, window, tab, data=None ):
+    def _onTabsReordered( self, window, data=None ):
         ## SESSIONS
         self.saveSession()
 
