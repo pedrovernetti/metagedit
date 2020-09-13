@@ -9,7 +9,7 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 * Most __operations__ work both for the __whole document__ (when nothing is selected) and for __selected parts only__ (when something is).
 
 ----
-### Features it Adds
+### Features It Adds
 
 * __Color Picker__: adds a better "Pick Color" dialog, accessible via Tools menu;
 * __Dark Theme__: adds a toggle at View menu to enable/disable the GTK dark theme for Gedit;
