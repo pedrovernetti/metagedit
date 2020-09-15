@@ -358,6 +358,12 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
     def __init__( self ):
         GObject.Object.__init__(self)
 
+    def _addSeparatorToMenu( self, menu, isSubmenu=False ):
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        if (not isSubmenu): self.contextMenuEntries.add(separator)
+        menu.append(separator)
+
     if (translationIsAvailable):
         def _addTranslationToContextMenu( self, menu ):
             ## TRANSLATE
@@ -371,9 +377,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
             chooseLanguagesItem.connect(
                     r'activate', lambda i: showDialog(self.window.translationLanguagesDialog))
             translationOptionsSubmenu.append(chooseLanguagesItem)
-            separator = Gtk.SeparatorMenuItem()
-            separator.show()
-            translationOptionsSubmenu.append(separator)
+            self._addSeparatorToMenu(translationOptionsSubmenu, True)
             for code, language in self.window.translationLanguagesDialog.languages.items():
                 translateToLanguageItem = Gtk.MenuItem.new_with_mnemonic("to " + language)
                 translateToLanguageItem.show()
@@ -398,9 +402,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         fixEncodingItem.show()
         fixEncodingItem.connect(r'activate', lambda i: redecode(self.view.get_buffer()))
         encodingOptionsSubmenu.append(fixEncodingItem)
-        separator = Gtk.SeparatorMenuItem()
-        separator.show()
-        encodingOptionsSubmenu.append(separator)
+        self._addSeparatorToMenu(encodingOptionsSubmenu, True)
         self.percentEncodeItem = Gtk.MenuItem.new_with_mnemonic("Percent-Encode")
         self.percentEncodeItem.show()
         self.percentEncodeItem.connect(r'activate', lambda i: percentEncode(self.view.get_buffer()))
@@ -454,16 +456,15 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
 
     def _populateContextMenu( self, menu ):
         if (not isinstance(menu, Gtk.MenuShell)): return
-        separator = Gtk.SeparatorMenuItem()
-        separator.show()
-        self.contextMenuEntries.add(separator)
-        menu.append(separator)
+        self._addSeparatorToMenu(menu)
         ## TRANSLATE
-        if (translationIsAvailable): self._addTranslationToContextMenu(menu)
-        ## ENCODING STUFF
-        self._addEncodingOptionsToContextMenu(menu)
+        if (translationIsAvailable):
+            self._addTranslationToContextMenu(menu)
+            self._addSeparatorToMenu(menu)
         ## LINE OPERATIONS
         self._addLineOperationsToContextMenu(menu)
+        ## ENCODING STUFF
+        self._addEncodingOptionsToContextMenu(menu)
         ## REMOVE TRAILING SPACES
         formattingOptions = Gtk.MenuItem.new_with_label("Formatting")
         formattingOptions.show()
