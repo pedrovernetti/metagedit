@@ -6,7 +6,7 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 
 * Metagedit-related settings/prefs are all stored using __GSettings__, persisting through Gedit sessions and being externally modifiable via gsettings interfaces;
 * __Saved sessions are stored as files__ at a subfolder inside Gedit's config folder, so to be easily copied around;
-* Most __operations__ work both for the __whole document__ (when nothing is selected) and for __selected parts only__ (when something is).
+* Most __operations__ work both on the __whole document__ (when nothing is selected) and on __selected parts only__ (when something is).
 
 ----
 ### Features It Adds
