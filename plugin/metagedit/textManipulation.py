@@ -22,7 +22,7 @@ from urllib.parse import quote as urlquote, unquote as urlunquote
 from html.entities import codepoint2name as codepoint2html, name2codepoint as html2codepoint
 import chardet
 try:
-    from googletrans import Translator
+    from googletrans import Translator, LANGUAGES as translatorLANGUAGES
     import textwrap
     translationIsAvailable = True
 except:
@@ -305,6 +305,9 @@ def redecode( document, actualEncoding=r'Autodetect', forceASCIIMode=False ):
 
 
 if (translationIsAvailable):
+
+    translatableLanguages = translatorLANGUAGES
+
     def translate( document, to ):
         ## TRANSLATE
         beg, end, noneSelected = getSelection(document)
@@ -324,6 +327,7 @@ if (translationIsAvailable):
         document.insert_at_cursor(result)
         document.end_user_action()
 else:
+
     def translate( document, to ):
         ## TRANSLATE
         pass

@@ -303,7 +303,6 @@ class ManageSessionsDialog(SessionDialog):
             column = Gtk.TreeViewColumn(columnTitle, renderer, text=i)
             column.set_expand(columnsExpand[i])
             self.sessionsList.append_column(column)
-        sessionsColumn = Gtk.TreeViewColumn(r'Session', renderer, text=0)
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_vexpand(True)
         scrolled.set_min_content_height(200)
@@ -617,3 +616,66 @@ class PickColorDialog(MetageditDialog):
             colorString = r'cmyk(' + str(c) + r',' + str(m) + r','
             colorString += (str(y) + r',' + str(k) + r')')
             self._pick(colorString)
+
+
+
+## TRANSLATE
+
+if (translationIsAvailable):
+
+    class TranslationLanguagesDialog(MetageditDialog):
+
+        def __init__( self, geditWindow ):
+            MetageditDialog.__init__(self, geditWindow, r'Languages ​​to Translate To')
+            defaultLanguage = defaultLanguageISO6391()
+            self.languages = dict()
+            self.selected = (defaultLanguageISO6391,
+                                translatableLanguages[defaultLanguage].title())
+            if (defaultLanguage in translatableLanguages):
+                self.languages[defaultLanguage] = self.selected[1]
+            self.languagesList = Gtk.TreeView()
+            column = Gtk.TreeViewColumn(r'🏷', Gtk.CellRendererText(), text=0)
+            column.set_expand(False)
+            column.set_min_width(50)
+            self.languagesList.append_column(column)
+            column = Gtk.TreeViewColumn(r' Language', Gtk.CellRendererText(), text=1)
+            column.set_expand(True)
+            column.set_min_width(225)
+            self.languagesList.append_column(column)
+            languageStore = Gtk.ListStore(str, str)
+            for code, language in translatableLanguages.items():
+                languageStore.append([code, (r' ' + language.title())])
+            self.languagesList.set_model(languageStore)
+            self.languagesList.set_activate_on_single_click(True)
+            self.languagesList.connect(r'row-activated', self._languageSelected)
+            scrolled = Gtk.ScrolledWindow()
+            scrolled.set_vexpand(True)
+            scrolled.set_min_content_height(200)
+            scrolled.set_max_content_height(600)
+            scrolled.set_propagate_natural_width(True)
+            scrolled.add(self.languagesList)
+            self.pack(scrolled, True, True, 0)
+            self.hideShowButton = Gtk.ToggleButton(label=r'Show', active=False)
+            self.hideShowButton.connect(r'clicked', self._showHideLanguage)
+            self.pack(self.hideShowButton, True, False, 0)
+
+        def _languageSelected( self, view, path, column, data=None ):
+            model = view.get_model()
+            row = model.get_iter(path[0])
+            self.selected = (model.get_value(row, 0), model.get_value(row, 1)[1:])
+            if (self.selected[0] in self.languages):
+                if (not self.hideShowButton.get_active()):
+                    self.hideShowButton.set_active(True)
+                    self.hideShowButton.set_label("Hide")
+            elif (self.hideShowButton.get_active()):
+                self.hideShowButton.set_active(False)
+                self.hideShowButton.set_label("Show")
+
+        def _showHideLanguage( self, button ):
+            if (button.get_active()):
+                button.set_label("Hide")
+                self.languages[self.selected[0]] = self.selected[1]
+            else:
+                button.set_label("Show")
+                if (self.selected[0] in self.languages):
+                    self.languages.pop(self.selected[0])

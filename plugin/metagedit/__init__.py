@@ -300,6 +300,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         pickColorDialogAction = Gio.SimpleAction(name=r'pick-color-dialog')
         pickColorDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.pickColorDialog))
         self.window.add_action(pickColorDialogAction)
+        ## TRANSLATE
+        if (translationIsAvailable):
+            self.window.translationLanguagesDialog = TranslationLanguagesDialog(self.window)
 
     def do_deactivate( self ):
         delattr(self.window, r'metageditActivatable')
@@ -334,6 +337,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## PICK COLOR
         del self.window.pickColorDialog
         self.window.remove_action(r'pick-color-dialog')
+        ## TRANSLATE
+        if (translationIsAvailable):
+            del self.window.translationLanguagesDialog
 
     def do_update_state( self ):
         activeDocument = self.window.get_active_document()
@@ -351,6 +357,31 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
 
     def __init__( self ):
         GObject.Object.__init__(self)
+
+    if (translationIsAvailable):
+        def _addTranslationToContextMenu( self, menu ):
+            ## TRANSLATE
+            translationOptions = Gtk.MenuItem.new_with_label("Translate")
+            translationOptions.show()
+            self.contextMenuEntries.add(translationOptions)
+            menu.append(translationOptions)
+            translationOptionsSubmenu = Gtk.Menu()
+            chooseLanguagesItem = Gtk.MenuItem.new_with_mnemonic("Choose Languages...")
+            chooseLanguagesItem.show()
+            chooseLanguagesItem.connect(
+                    r'activate', lambda i: showDialog(self.window.translationLanguagesDialog))
+            translationOptionsSubmenu.append(chooseLanguagesItem)
+            separator = Gtk.SeparatorMenuItem()
+            separator.show()
+            translationOptionsSubmenu.append(separator)
+            for code, language in self.window.translationLanguagesDialog.languages.items():
+                translateToLanguageItem = Gtk.MenuItem.new_with_mnemonic("to " + language)
+                translateToLanguageItem.show()
+                translateToLanguageItem.code = code
+                translateToLanguageItem.connect(
+                        r'activate', lambda i: translate(self.view.get_buffer(), i.code))
+                translationOptionsSubmenu.append(translateToLanguageItem)
+            translationOptions.set_submenu(translationOptionsSubmenu)
 
     def _addEncodingOptionsToContextMenu( self, menu ):
         ## ENCODING STUFF
@@ -427,8 +458,8 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         separator.show()
         self.contextMenuEntries.add(separator)
         menu.append(separator)
-
-
+        ## TRANSLATE
+        if (translationIsAvailable): self._addTranslationToContextMenu(menu)
         ## ENCODING STUFF
         self._addEncodingOptionsToContextMenu(menu)
         ## LINE OPERATIONS
