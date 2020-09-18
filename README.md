@@ -43,7 +43,7 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 
 ##### Additional Color Schemes ("Editor Color Themes")
 
-You can find the color scheme used in the above previews [here](https://github.com/pedrovernetti/gedit-color-schemes/) (plus 3 others).
+You can find the dark color scheme used in the above previews [here](https://github.com/pedrovernetti/gedit-color-schemes/) (plus 3 others - not all dark).
 
 ----
 ### Installation
