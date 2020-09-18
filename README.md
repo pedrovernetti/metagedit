@@ -23,6 +23,17 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 * __Sessions__: adds a "Sessions" submenu where it is possible to save and load Gedit tab sessions and also toggle auto-resuming of previous session on startup (remembering tabs);
 
 ----
+### Previews
+
+![Context Menu](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/context-menu-demo.gif)
+
+![Sessions Menu and Dialog](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/sessions-demo.gif)
+
+![Switching Theme](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/theme-switch-demo.gif)
+
+!["Edit as Administrator"](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/edit-as-admin-demo.gif)
+
+----
 ### Installation
 
 ##### Using Installer Script
