@@ -25,13 +25,25 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 ----
 ### Previews
 
+##### Context Menu
+
 ![Context Menu](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/context-menu-demo.gif)
+
+##### Sessions Menu and Dialog
 
 ![Sessions Menu and Dialog](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/sessions-demo.gif)
 
+##### Switching Themes
+
 ![Switching Theme](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/theme-switch-demo.gif)
 
+##### "Edit as Administrator"
+
 !["Edit as Administrator"](https://github.com/pedrovernetti/metagedit/raw/master/screenshots/edit-as-admin-demo.gif)
+
+##### Additional Color Schemes ("Editor Color Themes")
+
+You can find the color scheme used in the above previews [here](https://github.com/pedrovernetti/gedit-color-schemes/) (plus 3 others).
 
 ----
 ### Installation
