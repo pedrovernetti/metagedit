@@ -452,6 +452,10 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         sortItem.show()
         sortItem.connect(r'activate', lambda i: sortLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(sortItem)
+        sortDedupItem = Gtk.MenuItem.new_with_mnemonic("Sort and Remove Duplicates")
+        sortDedupItem.show()
+        sortDedupItem.connect(r'activate', lambda i: sortLines(self.view.get_buffer(), dedup=True))
+        sortOptionsSubmenu.append(sortDedupItem)
         sortOptions.set_submenu(sortOptionsSubmenu)
 
     def _populateContextMenu( self, menu ):

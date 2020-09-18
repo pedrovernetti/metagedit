@@ -33,12 +33,12 @@ except:
 def getSelection( document, noSelectionMeansEverything=True ):
     if (not document.get_has_selection()):
         if (noSelectionMeansEverything): # get whole document
-            beg, end = (document.get_start_iter(), document.get_end_iter())
+            return (document.get_start_iter(), document.get_end_iter(), True)
         else: # get current character
             beg = document.get_iter_at_mark(document.get_insert())
             end = document.get_iter_at_mark(document.get_insert())
             end.forward_char()
-        return (beg, end, True)
+            return (beg, end, True)
     beg, end = document.get_selection_bounds()
     return (beg, end, False)
 
