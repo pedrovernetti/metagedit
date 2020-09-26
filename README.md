@@ -21,6 +21,7 @@ Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (G
 * __Remove Trailing Spaces__: adds a context menu option to remove trailing spaces (incl. trailing newlines when applied to the whole document);
 * __Scroll Past Bottom__: adds a bottom margin to Gedit view, which can be enabled/disable via toggle on View menu;
 * __Sessions__: adds a "Sessions" submenu where it is possible to save and load Gedit tab sessions and also toggle auto-resuming of previous session on startup (remembering tabs);
+* __Smart Home/End/Backspace__: enables the Smart-Home, Smart-End and Smart-Backspace behaviors (pressing Home moves first to the end of indentation, pressing End acts similarly and pressing Backspace on indentations removes as many spaces as needed to remove one indentation level).
 
 ----
 ### Previews
