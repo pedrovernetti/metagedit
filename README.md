@@ -1,6 +1,6 @@
 # Metagedit
 
-Metagedit is a python plugin for [gedit](https://en.wikipedia.org/wiki/Gedit) (GNOME Text Editor, usually shipped with Debian, Fedora, openSUSE and Ubuntu) which adds various improvements and functionalities to it.
+Metagedit is a python plugin for [Gedit](https://en.wikipedia.org/wiki/Gedit) (GNOME Text Editor, usually shipped with Debian, Fedora, openSUSE and Ubuntu) which adds various improvements and functionalities to it.
 
 ### Characteristics
 
