@@ -21,7 +21,7 @@ from time import time as nowTime
 import gi
 gi.require_version(r'Gedit', r'3.0')
 gi.require_version(r'Gtk', r'3.0')
-from gi.repository import GLib, GObject, Gio, Gtk, Gdk, Gedit
+from gi.repository import GLib, GObject, Gio, Gtk, GtkSource, Gdk, Gedit
 
 from .textManipulation import *
 from .dialogs import *
@@ -342,13 +342,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             del self.window.translationLanguagesDialog
 
     def do_update_state( self ):
-        activeDocument = self.window.get_active_document()
-        hasSelection = False if (activeDocument is None) else activeDocument.get_has_selection()
-        activeView = self.window.get_active_view()
-        if (activeView and hasattr(activeView, r'metageditActivatable')):
-            pass #TODO: how to deactivate items on no selection?
-            #activeView.metageditActivatable.percentEncodeItem.set_enabled(hasSelection)
-            #activeView.metageditActivatable.percentEncodeDialogItem.set_enabled(hasSelection)
+        pass
 
 
 
@@ -477,7 +471,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         formattingOptionsSubmenu = Gtk.Menu()
         removeTrailingSpacesItem = Gtk.MenuItem.new_with_mnemonic("Remove Trailing Spaces")
         removeTrailingSpacesItem.show()
-        removeTrailingSpacesItem.connect(r'activate', lambda i: removeTrailingSpaces(view.get_buffer()))
+        removeTrailingSpacesItem.connect(r'activate', lambda i: removeTrailingSpaces(self.view.get_buffer()))
         formattingOptionsSubmenu.append(removeTrailingSpacesItem)
         formattingOptions.set_submenu(formattingOptionsSubmenu)
 
@@ -489,12 +483,23 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.contextMenuEntries = set()
         ## BOTTOM MARGIN
         self.view.set_bottom_margin(90)
+        ## SMART HOME/END/BACKSPACE
+        self._defaultSmartHomeEnd = self.view.get_smart_home_end()
+        self.view.set_smart_home_end(GtkSource.SmartHomeEndType.BEFORE)
+        self._defaultSmartBackspace = self.view.get_smart_backspace()
+        self.view.set_smart_backspace(True)
 
     def do_deactivate( self ):
         delattr(self.view, r'metageditActivatable')
         for handler in self.handlers: self.view.disconnect(handler)
         for entry in self.contextMenuEntries: entry.destroy()
         del self.contextMenuEntries
+        ## SMART HOME/END/BACKSPACE
+        self.view.set_smart_home_end(self._defaultSmartHomeEnd)
+        self.view.set_smart_backspace(self._defaultSmartBackspace)
+        ## COMMENT/UNCOMMENT
+        if (hasattr(self.view.get_buffer(), r'lineCommentStyle')):
+            delattr(self.view.get_buffer(), r'lineCommentStyle')
 
 
 

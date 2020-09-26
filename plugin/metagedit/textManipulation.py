@@ -16,14 +16,16 @@
 # #  In order to have this script working (if it is currently not), run 'install.sh'.
 # =============================================================================================
 
-import codecs, random, re
+import re
+from codecs import lookup as codecLookup
+from random import shuffle
 from unicodedata import normalize as unicodeNormalize, combining as unicodeCombining
 from urllib.parse import quote as urlquote, unquote as urlunquote
 from html.entities import codepoint2name as codepoint2html, name2codepoint as html2codepoint
-import chardet
+from chardet import detect as detectEncoding
 try:
     from googletrans import Translator, LANGUAGES as translatorLANGUAGES
-    import textwrap
+    from textwrap import wrap as textWrap
     translationIsAvailable = True
 except:
     translationIsAvailable = False
@@ -103,7 +105,7 @@ def removeTrailingNewlines( document ):
 
 
 
-def removeEmptyLines( document ): #TODO: selection mode inserts trailing newlines for some reason
+def removeEmptyLines( document ): #TODO: selection mode inserts trailing newlines for some reason - deleting everything
     ## LINE OPERATIONS
     beg, end, noneSelected = getSelectedLines(document)
     document.begin_user_action()
@@ -209,7 +211,7 @@ def shuffleLines( document, dedup=False, caseSensitive=False, offset=0 ):
     beg, end, noneSelected = getSelectedLines(document)
     selection = document.get_text(beg, end, False).splitlines()
     if (dedup): selection = _dedupedLines(selection, caseSensitive, offset)
-    random.shuffle(selection)
+    shuffle(selection)
     document.begin_user_action()
     document.delete(beg, end)
     document.insert_at_cursor('\n'.join(selection))
@@ -279,14 +281,14 @@ def redecode( document, actualEncoding=r'Autodetect', forceASCIIMode=False ):
     actualEncoding = re.sub (r'^mac[-_]?os[-_]?', r'mac', actualEncoding)
     auto = (actualEncoding == r'autodetect')
     try:
-        inUseEncoding = codecs.lookup(document.get_file().get_encoding().get_charset()).name
-        actualEncoding = None if auto else codecs.lookup(actualEncoding).name
+        inUseEncoding = codecLookup(document.get_file().get_encoding().get_charset()).name
+        actualEncoding = None if auto else codecLookup(actualEncoding).name
         if (inUseEncoding == actualEncoding): return
         text = document.get_text(document.get_start_iter(), document.get_end_iter(), False)
         text = text.encode(inUseEncoding, r'ignore')
         if (auto):
-            actualEncoding = codecs.lookup(chardet.detect(text)[r'encoding']).name
-            if (inUseEncoding == actualEncoding): return
+            actualEncoding = codecLookup(detectEncoding(text)[r'encoding']).name
+            if (inUseEncoding == actualEncoding): return #TODO: do this even if not 'auto'
     except:
         return
     text = text.decode(actualEncoding, r'replace')
@@ -313,7 +315,7 @@ if (translationIsAvailable):
         beg, end, noneSelected = getSelection(document)
         if (noneSelected and (document.get_language() is not None)): return
         selection = document.get_text(beg, end, False)
-        selection = textwrap.wrap(selection, 14000,
+        selection = textWrap(selection, 14000,
                 expand_tabs=False, replace_whitespace=False, drop_whitespace=False)
         translator = Translator()
         result = r''
