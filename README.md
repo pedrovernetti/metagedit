@@ -18,6 +18,7 @@ Metagedit is a python plugin for [Gedit](https://en.wikipedia.org/wiki/Gedit) (G
 * __Extra/New Keyboard Shortcuts__: adds some extra keyboard shortcuts, like ctrl+Y for undoing, ctrl+E for deleting current line (or selected ones) and ctrl+Tab/ctrl+shift+Tab/ctrl+PageDown/ctrl+PageUp to switch tabs;
 * __Line Operations__: adds an improved Sort dialog to Gedit (at Tools menu and context menu) and also some quick linewise sort-like (removing empty lines, sorting, deduplicating, reversing and shuffling) and joining operations to context menu (works both on selections and whole-document-wide);
 * __Open as Administrator__: adds a File menu option to re-open file as administrator (Root), making it possible to quikcly edit protected file;
+* __Overlay Scrollbar__: adds a toggle at View menu to enable/disable overlay scrollbars for Gedit;
 * __Remove Trailing Spaces__: adds a context menu option to remove trailing spaces (incl. trailing newlines when applied to the whole document);
 * __Scroll Past Bottom__: adds a bottom margin to Gedit view, which can be enabled/disable via toggle on View menu;
 * __Sessions__: adds a "Sessions" submenu where it is possible to save and load Gedit tab sessions and also toggle auto-resuming of previous session on startup (remembering tabs);

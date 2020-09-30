@@ -18,8 +18,13 @@
         </key>
         <key type="b" name="prefer-dark-theme">
             <default>true</default>
-            <summary>Prefer Dark GTK Theme</summary>
+            <summary>Prefer dark GTK theme</summary>
             <description>Whether to prefer a dark GTK theme for Gedit.</description>
+        </key>
+        <key type="b" name="prefer-overlay-scrollbar">
+            <default>false</default>
+            <summary>Prefer overlay scrollbar</summary>
+            <description>Whether to prefer overlay or normal scrollbars for Gedit.</description>
         </key>
     </schema>
 </schemalist>
