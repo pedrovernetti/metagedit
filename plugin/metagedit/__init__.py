@@ -559,9 +559,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         ## OVERLAY SCROLLBAR SWITCH
         isActive = state.get_boolean()
         settings.set_value(r'prefer-overlay-scrollbar', GLib.Variant(r'b', isActive))
-        for window in self.app.get_windows():
-            for view in window.get_views():
-                view.get_parent().set_overlay_scrolling(isActive)
+        for view in self.app.get_views(): view.get_parent().set_overlay_scrolling(isActive)
         action.set_state(GLib.Variant.new_boolean(isActive))
 
     def _toggleResumeSession( self, action, state ):
