@@ -41,8 +41,8 @@ if [[ "$MODE" -lt 2 ]]; then
         exit
         fi
     printf "\033[1mInstalling dependencies...\033[0m\n"
-    tryDoing sudo apt -y install gedit python3-pip python3-gi
-    tryDoing sudo apt-get install gir?.?-{glib*,gtk-3.0}
+    tryDoing sudo apt-get -y install gedit python3-pip python3-gi
+    tryDoing sudo apt-get install -y libglib?.?-bin gir?.?-{glib*,gtk-3.0}
     tryDoing sudo pip3 install chardet iso-639
 
 # non-default modes' first step (removing old files)
