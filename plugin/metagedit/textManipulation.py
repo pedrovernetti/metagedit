@@ -30,6 +30,12 @@ try:
 except:
     translationIsAvailable = False
 
+from .code import *
+
+
+
+_emptyLine = re.compile(r'^\s*$')
+
 
 
 def getSelection( document, noSelectionMeansEverything=True ):
@@ -114,14 +120,14 @@ def removeEmptyLines( document ): #TODO: selection mode inserts trailing newline
             beg.set_line(lineNumber)
             end.set_line(lineNumber)
             if (not end.ends_line()): end.forward_to_line_end()
-            if (re.match(r'^\s*$', document.get_text(beg, end, False))):
+            if (_emptyLine.match(document.get_text(beg, end, False))):
                 end.forward_char()
                 document.delete(beg, end)
         removeTrailingNewlines(document)
     else: # selection mode
         beg.backward_char()
         selection = document.get_text(beg, end, False)
-        if (re.match(r'^\s*$', selection, flags=re.MULTILINE)): selection = r''
+        if (_emptyLine.match(selection, flags=re.MULTILINE)): selection = r''
         selection = re.sub(r'\n\s*\n', r'\n', selection, flags=re.MULTILINE)
         document.delete(beg, end)
         document.insert_at_cursor(selection)
@@ -237,13 +243,132 @@ def sortLines( document, reverse=False, dedup=False, caseSensitive=False, offset
 
 
 
+def _commentedSpecialCaseLine( line, language, cursorOffset ):
+    ## COMMENT/UNCOMMENT
+    if ((language == r'cobol') and (line[6] != r'*')):
+        line = (line[:6], line[6:])
+        if (line[1].startswith(r' ')):
+            if (cursorOffset >= len(line[0])): cursorOffset += 1
+            return ((line[0] + r'*' + line[1]), cursorOffset)
+        else:
+            if (cursorOffset >= len(line[0])): cursorOffset += 2
+            return ((line[0] + r'* ' + line[1]), cursorOffset)
+    elif((language == r'fortran77') and (not line.startswith(r'C'))):
+        if (line.startswith(r' ')): return ((r'C' + line), (cursorOffset + 1))
+        return ((r'C ' + line), (cursorOffset + 2))
+    return (line, cursorOffset)
+
+def _commentedLine( line, language, preferHashComment=False, cursorOffset=0 ):
+    ## COMMENT/UNCOMMENT
+    if (len(line) > 3): line = [line[0], line[-2], line[-1]]
+    if (len(line[1]) == 0): return (''.join(line), cursorOffset)
+    space = r' ' if not line[1].startswith(r' ') else r''
+    indentationLength = len(line[0])
+    if (language in commentSymbol[r'line']):
+        hasAltHashComment = language in commentSymbol[r'line#']
+        startOfComment = commentSymbol[r'line'][language]
+        if (hasAltHashComment):
+            if (preferHashComment): startOfComment = r'#'
+            possibleStartsOfComment = (commentSymbol[r'line'][language], r'#')
+        else:
+            possibleStartsOfComment = (startOfComment)
+        if (line[1].startswith(possibleStartsOfComment)):
+            return (r''.join(line), cursorOffset)
+        if (cursorOffset >= indentationLength):
+            cursorOffset += (len(startOfComment) + len(space))
+        line = line[0] + startOfComment + space + line[1] + line[2]
+    elif (language in commentSymbol[r'block']):
+        limits = commentSymbol[r'block'][language]
+        if (line[1].startswith(limits[0])): return (r''.join(line), cursorOffset)
+        if (cursorOffset >= indentationLength):
+            if (cursorOffset >= (indentationLength + len(line[1]))):
+                cursorOffset += (1 + len(limits[1]))
+            cursorOffset += (len(limits[0]) + len(space))
+        line = line[0] + limits[0] + space + line[1] + r' ' + limits[1] + line[2]
+    else:
+        line = r''.join(line)
+        if (language in commentSymbol[r'special']):
+            return _commentedSpecialCaseLine(line, language, cursorOffset)
+    return (line, cursorOffset)
+
+def commentLines( document ):
+    ## COMMENT/UNCOMMENT
+    beg, end, noneSelected = getSelectedLines(document, False)
+    selection = document.get_text(beg, end, False)
+    if (noneSelected and _emptyLine.match(selection)): return
+    language = cleanLanguageName(document.get_language().get_name())
+    lineParts = re.compile(r'^([\t ]*)(.*?)(\s*)$')
+    document.begin_user_action()
+    document.delete(beg, end)
+    if (noneSelected):
+        line = document.get_iter_at_mark(document.get_insert())
+        column = line.get_line_offset()
+        line = line.get_line()
+        selection = lineParts.search(selection).groups()
+        selection = [(r'' if part is None else part) for part in selection]
+        selection, column = _commentedLine(selection, language, False, column) #TODO: preferHash~
+        document.insert_at_cursor(selection)
+        document.place_cursor(document.get_iter_at_line_offset(line, column))
+    else:
+        selection = [lineParts.search(line).groups() for line in selection.splitlines()]
+        selection = [[(r'' if part is None else part) for part in line] for line in selection]
+        selection = [_commentedLine(line, language, False)[0] for line in selection] #TODO: preferHash~
+        document.insert_at_cursor('\n'.join(selection))
+    document.end_user_action()
+
+def _uncommentedLine( line, language, cursorOffset=0 ):
+    ## COMMENT/UNCOMMENT
+    limits = None
+    if (_emptyLine.match(line)): return (line, cursorOffset)
+    if (language in commentSymbol[r'line']):
+        limits = (commentSymbol[r'line'][language], r'')
+        start = r'(' + re.escape(limits[0]) + r'+)'
+        if (language in commentSymbol[r'line#']): start = start[:-1] + r'|#+)'
+        commentedLine = re.compile(r'^\s*' + start)
+    elif (language in commentSymbol[r'block']):
+        limits = commentSymbol[r'block'][language]
+        start = r'(' + re.escape(limits[0]) + r')'
+        commentedLine = re.compile(r'^\s*' + start + r'.*' + re.escape(limits[1][0]))
+    if ((limits is not None) and commentedLine.match(line)):
+        finalOffset = cursorOffset
+        line = line.rsplit(limits[1], 1) if (len(limits[1]) > 0) else [line, r'']
+        line = [re.sub(r'[\t ]+$', r'', line[0]), line[1]]
+        if (cursorOffset > len(line[0])): finalOffset -= len(limits[1])
+        firstPartLength = len(line[0])
+        line = re.split((start + r'\s*'), line[0], 1) + [line[1]]
+        if (cursorOffset > len(line[0])): finalOffset -= len(line[1])
+        return (r''.join([line[0], line[2], line[3]]), finalOffset)
+    return (line, cursorOffset)
+
+def uncommentLines( document ):
+    ## COMMENT/UNCOMMENT
+    beg, end, noneSelected = getSelectedLines(document, False)
+    selection = document.get_text(beg, end, False)
+    if (noneSelected and _emptyLine.match(selection)): return
+    language = cleanLanguageName(document.get_language().get_name())
+    document.begin_user_action()
+    document.delete(beg, end)
+    if (noneSelected):
+        line = document.get_iter_at_mark(document.get_insert())
+        column = line.get_line_offset()
+        line = line.get_line()
+        selection, column = _uncommentedLine(selection, language, column)
+        document.insert_at_cursor(selection)
+        document.place_cursor(document.get_iter_at_line_offset(line, column))
+    else:
+        selection = selection.splitlines()
+        selection = [_uncommentedLine(line, language)[0] for line in selection]
+        document.insert_at_cursor('\n'.join(selection))
+    document.end_user_action()
+
+
+
 def htmlEncode( document ):
     ## ENCODING STUFF
     beg, end, noneSelected = getSelection(document, False)
     selection = document.get_text(beg, end, False)
     #TODO
-    # entity = codepoint2html.get(ord(selection[i]), None)
-    # entity = r'&' + (str(ord(selection[i])) if (entity is None) else entity) + r';'
+
 
 
 
@@ -251,8 +376,9 @@ def percentEncode( document, doNotEncode=r'' ):
     ## ENCODING STUFF
     beg, end, noneSelected = getSelection(document, False)
     selection = document.get_text(beg, end, False)
-    default = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
-    if (noneSelected and (selection in default)): return
+    if (noneSelected):
+        default = r'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
+        if (selection in default): return
     doNotEncode = doNotEncode.replace(r'%', r'')
     document.begin_user_action()
     document.delete(beg, end)

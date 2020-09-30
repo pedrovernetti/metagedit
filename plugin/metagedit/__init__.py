@@ -412,16 +412,27 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         encodingOptions.set_submenu(encodingOptionsSubmenu)
 
     def _addLineOperationsToContextMenu( self, menu ):
-        ## LINE OPERATIONS
         sortOptions = Gtk.MenuItem.new_with_label("Lines")
         sortOptions.show()
         self.contextMenuEntries.add(sortOptions)
         menu.append(sortOptions)
         sortOptionsSubmenu = Gtk.Menu()
+        ## COMMENT/UNCOMMENT
+        commentItem = Gtk.MenuItem.new_with_mnemonic("Comment")
+        commentItem.show()
+        commentItem.connect(r'activate', lambda i: commentLines(self.view.get_buffer()))
+        sortOptionsSubmenu.append(commentItem)
+        uncommentItem = Gtk.MenuItem.new_with_mnemonic("Uncomment")
+        uncommentItem.show()
+        uncommentItem.connect(r'activate', lambda i: uncommentLines(self.view.get_buffer()))
+        sortOptionsSubmenu.append(uncommentItem)
+        ## LINE OPERATIONS
+        self._addSeparatorToMenu(sortOptionsSubmenu, True)
         sortDialogItem = Gtk.MenuItem.new_with_mnemonic("Advanced Sort...")
         sortDialogItem.show()
         sortDialogItem.connect(r'activate', lambda i: showDialog(self.window.sortDialog))
         sortOptionsSubmenu.append(sortDialogItem)
+        self._addSeparatorToMenu(sortOptionsSubmenu, True)
         joinItem = Gtk.MenuItem.new_with_mnemonic("Join")
         joinItem.show()
         joinItem.connect(r'activate', lambda i: joinLines(self.view.get_buffer()))
@@ -454,6 +465,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
 
     def _populateContextMenu( self, menu ):
         if (not isinstance(menu, Gtk.MenuShell)): return
+        hasSelection = self.view.get_buffer().get_has_selection()
         self._addSeparatorToMenu(menu)
         ## TRANSLATE
         if (translationIsAvailable):
@@ -463,12 +475,12 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self._addLineOperationsToContextMenu(menu)
         ## ENCODING STUFF
         self._addEncodingOptionsToContextMenu(menu)
-        ## REMOVE TRAILING SPACES
         formattingOptions = Gtk.MenuItem.new_with_label("Formatting")
         formattingOptions.show()
         self.contextMenuEntries.add(formattingOptions)
         menu.append(formattingOptions)
         formattingOptionsSubmenu = Gtk.Menu()
+        ## REMOVE TRAILING SPACES
         removeTrailingSpacesItem = Gtk.MenuItem.new_with_mnemonic("Remove Trailing Spaces")
         removeTrailingSpacesItem.show()
         removeTrailingSpacesItem.connect(r'activate', lambda i: removeTrailingSpaces(self.view.get_buffer()))
