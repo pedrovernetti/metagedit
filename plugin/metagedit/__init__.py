@@ -494,7 +494,7 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.handlers.add(self.view.connect('populate-popup', lambda v, p: self._populateContextMenu(p)))
         self.contextMenuEntries = set()
         ## BOTTOM MARGIN
-        self.view.set_bottom_margin(90)
+        self.view.set_bottom_margin(90 * settings.get_value(r'scroll-past-bottom').get_boolean())
         ## SMART HOME/END/BACKSPACE
         self._defaultSmartHomeEnd = self.view.get_smart_home_end()
         self.view.set_smart_home_end(GtkSource.SmartHomeEndType.BEFORE)
@@ -510,6 +510,8 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         for handler in self.handlers: self.view.disconnect(handler)
         for entry in self.contextMenuEntries: entry.destroy()
         del self.contextMenuEntries
+        ## BOTTOM MARGIN
+        self.view.set_bottom_margin(0)
         ## SMART HOME/END/BACKSPACE
         self.view.set_smart_home_end(self._defaultSmartHomeEnd)
         self.view.set_smart_backspace(self._defaultSmartBackspace)
@@ -542,6 +544,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
     def _toggleBottomMargin( self, action, state ):
         ## BOTTOM MARGIN
         isActive = state.get_boolean()
+        settings.set_value(r'scroll-past-bottom', GLib.Variant(r'b', isActive))
         for view in self.app.get_views(): view.set_bottom_margin(90 if isActive else 0)
         action.set_state(GLib.Variant.new_boolean(isActive))
 
@@ -610,8 +613,9 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         sortDialogItem = Gio.MenuItem.new("Sort Lines...", r'win.sort-dialog')
         self._toolsMenu.prepend_menu_item(sortDialogItem)
         ## BOTTOM MARGIN
+        bottomMarginOn = settings.get_value(r'scroll-past-bottom').get_boolean()
         toggleBottomMarginAction = Gio.SimpleAction.new_stateful(
-                        r'toggle-bottom-margin', None, GLib.Variant.new_boolean(True))
+                        r'toggle-bottom-margin', None, GLib.Variant.new_boolean(bottomMarginOn))
         toggleBottomMarginAction.connect(r'change-state', self._toggleBottomMargin)
         self.app.add_action(toggleBottomMarginAction)
         toggleBottomMarginItem = Gio.MenuItem.new("Show Virtual Space at Bottom", r'app.toggle-bottom-margin')
@@ -622,7 +626,7 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
                         r'toggle-overlay-scrollbar', None, GLib.Variant.new_boolean(overlayScrollbarOn))
         toggleOverlayScrollbarAction.connect(r'change-state', self._toggleOverlayScrollbar)
         self.app.add_action(toggleOverlayScrollbarAction)
-        toggleOverlayScrollbarItem = Gio.MenuItem.new("Prefer Overlay Scrollbar", r'app.toggle-overlay-scrollbar')
+        toggleOverlayScrollbarItem = Gio.MenuItem.new("Prefer Overlay Scrollbars", r'app.toggle-overlay-scrollbar')
         self._viewMenu.prepend_menu_item(toggleOverlayScrollbarItem)
         ## DARK THEME SWITCH
         self._originalThemeSettings = self._settings.get_property(r'gtk-application-prefer-dark-theme')
@@ -689,7 +693,6 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         del self._toolsMenu
         del self._documentsMenu
         ## BOTTOM MARGIN
-        for view in self.app.get_views(): view.set_bottom_margin(0)
         self.app.remove_action(r'toggle-bottom-margin')
         ## OVERLAY SCROLLBAR SWITCH
         self.app.remove_action(r'toggle-overlay-scrollbar')

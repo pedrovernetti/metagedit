@@ -16,6 +16,11 @@
             <summary>Replace current session on loading</summary>
             <description>Whether to replace the current session on loading another one.</description>
         </key>
+        <key type="b" name="scroll-past-bottom">
+            <default>true</default>
+            <summary>Allow scrolling past bottom</summary>
+            <description>Whether to show virtual space at the bottom of documents.</description>
+        </key>
         <key type="b" name="prefer-dark-theme">
             <default>true</default>
             <summary>Prefer dark GTK theme</summary>
