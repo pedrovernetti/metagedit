@@ -29,6 +29,7 @@ def defaultIndentation():
 
 
 
+_l_text                 = None
 _l_ABAP                 = r'abap' # missing from Gedit
 _l_ABNF                 = r'abnf'
 _l_ActionScript         = r'actionscript'
@@ -42,11 +43,14 @@ _l_Automake             = r'automake'
 _l_AWK                  = r'awk'
 _l_Batch                = r'dosbatch'
 _l_BennuGD              = r'bennugd'
+_l_BibTeX               = r'bibtex'
 _l_BluespecVerilog      = r'bluespecsystemverilog'
 _l_Boo                  = r'boo'
 _l_C                    = r'c'
 _l_CGShader             = r'cgshaderlanguage'
+_l_ChangeLog            = r'changelog'
 _l_Clojure              = r'clojure' # missing from Gedit
+_l_CMake                = r'cmake'
 _l_CObjCHeader          = r'c/objcheader'
 _l_COBOL                = r'cobol'
 _l_Cobra                = r'cobra' # missing from Gedit
@@ -55,15 +59,18 @@ _l_ColdFusion           = r'coldfusion' # missing from Gedit
 _l_Cpp                  = r'cpp'
 _l_Csharp               = r'csharp'
 _l_CSS                  = r'css'
+_l_CSV                  = r'csv'
 _l_CUDA                 = r'cuda'
 _l_Cypher               = r'cypher' # missing from Gedit
 _l_D                    = r'd'
 _l_Dart                 = r'dart'
 _l_Delphi               = r'delphi' # missing from Gedit
 _l_Desktop              = r'desktop'
+_l_Diff                 = r'diff'
 _l_DocBook              = r'docbook'
 _l_Dockerfile           = r'dockerfile'
 _l_Dot                  = r'graphvizdot'
+_l_DPath                = r'dpath'
 _l_DTD                  = r'dtd'
 _l_dtl                  = r'djangotemplate'
 _l_Eiffel               = r'eiffel'
@@ -78,6 +85,7 @@ _l_FORTRAN77            = r'fortran77' # missing from Gedit
 _l_FORTRAN95            = r'fortran95'
 _l_Fsharp               = r'fsharp'
 _l_GAP                  = r'gap'
+_l_GDBLog               = r'gdblog'
 _l_GDBScript            = r'gdbscript'
 _l_Genie                = r'genie'
 _l_gettextTranslation   = r'gettexttranslation'
@@ -98,6 +106,7 @@ _l_J                    = r'j'
 _l_Jade                 = r'jade'
 _l_Java                 = r'java'
 _l_JavaScript           = r'javascript'
+_l_JSON                 = r'json'
 _l_JSX                  = r'jsx'
 _l_Julia                = r'julia'
 _l_K                    = r'k' # missing from Gedit
@@ -113,7 +122,6 @@ _l_logcat               = r'logcat'
 _l_Logtalk              = r'logtalk'
 _l_Lua                  = r'lua'
 _l_m4                   = r'm4'
-_l_Make                 = r'cmake'
 _l_Makefile             = r'makefile'
 _l_Mallard              = r'mallard'
 _l_Markdown             = r'markdown'
@@ -177,6 +185,7 @@ _l_Tera                 = r'teratemplate'
 _l_TexInfo              = r'texinfo'
 _l_Thrift               = r'thrift'
 _l_TOML                 = r'toml'
+_l_TSV                  = r'tsv'
 _l_txt2tags             = r'txt2tags'
 _l_TypeScript           = r'typescript'
 _l_TypeScriptJSX        = r'typescriptjsx'
@@ -219,7 +228,7 @@ commentSymbol = {
                   _l_Automake:_shComment, _l_AWK:_shComment, _l_BennuGD:_cppComment,
                   _l_BluespecVerilog:_cppComment, _l_Boo:_cppComment, _l_C:_cppComment,
                   _l_Csharp:_cppComment, _l_Cpp:_cppComment, _l_CGShader:_cppComment,
-                  _l_Hpp:_cppComment, _l_Make:_shComment, _l_CObjCHeader:_cppComment,
+                  _l_Hpp:_cppComment, _l_CMake:_shComment, _l_CObjCHeader:_cppComment,
                   _l_LISP:_asmComment, _l_CUDA:_cppComment, _l_D:_cppComment, _l_Dart:_cppComment,
                   _l_Desktop:_shComment, _l_Dockerfile:_shComment, _l_Eiffel:_sqlComment,
                   _l_Erlang:_texComment, _l_Fsharp:_cppComment, _l_FCL:_cppComment,
@@ -261,7 +270,7 @@ commentSymbol = {
     r'block'   : {_l_ActionScript:_cComment, _l_ANSForth94:_pascalComment, _l_BennuGD:_cComment,
                   _l_BluespecVerilog:_cComment, _l_Boo:_cComment, _l_C:_cComment,
                   _l_Csharp:_cComment, _l_Cpp:_cComment, _l_CGShader:_cComment, _l_Hpp:_cComment,
-                  _l_Make:(r'#[[', r']]'), _l_CObjCHeader:_cComment, _l_LISP:_lispComment,
+                  _l_CMake:(r'#[[', r']]'), _l_CObjCHeader:_cComment, _l_LISP:_lispComment,
                   _l_CSS:_cComment, _l_CUDA:_cComment, _l_D:_cComment, _l_Dart:_cComment,
                   _l_dtl:_templateComment, _l_DocBook:_xmlComment, _l_DTD:_xmlComment,
                   _l_Fsharp:_pascalComment, _l_Forth:_pascalComment, _l_Genie:_cComment,
