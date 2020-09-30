@@ -205,7 +205,6 @@ _sqlComment      = r'--'
 _texComment      = r'%'
 _vbComment       = '\x27'
 
-_algolComment    = (r'comment'
 _cComment        = (r'/*', r'*/')
 _lispComment     = (r'#|', r'|#')
 _matlabComment   = (r'%{', r'%}')

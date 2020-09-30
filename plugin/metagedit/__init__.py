@@ -500,6 +500,10 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.view.set_smart_home_end(GtkSource.SmartHomeEndType.BEFORE)
         self._defaultSmartBackspace = self.view.get_smart_backspace()
         self.view.set_smart_backspace(True)
+        ## OVERLAY SCROLLBAR SWITCH
+        self._originalScrollbarSettings = self.view.get_parent().get_overlay_scrolling()
+        self.view.get_parent().set_overlay_scrolling(
+                settings.get_value(r'prefer-overlay-scrollbar').get_boolean())
 
     def do_deactivate( self ):
         delattr(self.view, r'metageditActivatable')
@@ -512,6 +516,8 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         ## COMMENT/UNCOMMENT
         if (hasattr(self.view.get_buffer(), r'lineCommentStyle')):
             delattr(self.view.get_buffer(), r'lineCommentStyle')
+        ## OVERLAY SCROLLBAR SWITCH
+        self.view.get_parent().set_overlay_scrolling(self._originalScrollbarSettings)
 
 
 
@@ -543,16 +549,16 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         ## DARK THEME SWITCH
         isActive = state.get_boolean()
         settings.set_value(r'prefer-dark-theme', GLib.Variant(r'b', isActive))
-        for window in self.windows:
-            for view in window.get_views():
-                view.get_parent().set_overlay_scrolling(isActive)
+        self._settings.set_property(r'gtk-application-prefer-dark-theme', isActive)
         action.set_state(GLib.Variant.new_boolean(isActive))
 
     def _toggleOverlayScrollbar( self, action, state ):
         ## OVERLAY SCROLLBAR SWITCH
         isActive = state.get_boolean()
         settings.set_value(r'prefer-overlay-scrollbar', GLib.Variant(r'b', isActive))
-        self._settings.set_property(r'gtk-application-prefer-dark-theme', isActive)
+        for window in self.app.get_windows():
+            for view in window.get_views():
+                view.get_parent().set_overlay_scrolling(isActive)
         action.set_state(GLib.Variant.new_boolean(isActive))
 
     def _toggleResumeSession( self, action, state ):
@@ -587,7 +593,6 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
 
     def do_activate( self ):
         self.app.metageditActivatable = self
-        self.windows = self.app.get_windows()
         self._fileMenu = self.extend_menu(r'file-section')
         self._file2Menu = self.extend_menu(r'file-section-1')
         self._editMenu = self.extend_menu(r'edit-section')
@@ -611,6 +616,14 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         self.app.add_action(toggleBottomMarginAction)
         toggleBottomMarginItem = Gio.MenuItem.new("Show Virtual Space at Bottom", r'app.toggle-bottom-margin')
         self._view2Menu.append_menu_item(toggleBottomMarginItem)
+        ## OVERLAY SCROLLBAR SWITCH
+        overlayScrollbarOn = settings.get_value(r'prefer-overlay-scrollbar').get_boolean()
+        toggleOverlayScrollbarAction = Gio.SimpleAction.new_stateful(
+                        r'toggle-overlay-scrollbar', None, GLib.Variant.new_boolean(overlayScrollbarOn))
+        toggleOverlayScrollbarAction.connect(r'change-state', self._toggleOverlayScrollbar)
+        self.app.add_action(toggleOverlayScrollbarAction)
+        toggleOverlayScrollbarItem = Gio.MenuItem.new("Prefer Overlay Scrollbar", r'app.toggle-overlay-scrollbar')
+        self._viewMenu.prepend_menu_item(toggleOverlayScrollbarItem)
         ## DARK THEME SWITCH
         self._originalThemeSettings = self._settings.get_property(r'gtk-application-prefer-dark-theme')
         self._darkThemePrefsFile = os.environ[r'HOME'] + r'/.config/gedit/metagedit-dark-theme'
@@ -623,19 +636,6 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         toggleDarkThemeItem = Gio.MenuItem.new("Prefer Dark Theme", r'app.toggle-dark-theme')
         if (Gtk.get_major_version() > 2):
             self._viewMenu.prepend_menu_item(toggleDarkThemeItem)
-        ## OVERLAY SCROLLBAR SWITCH
-        activeView = self.windows[0].get_active_view()
-        if (activeView is None): self._originalScrollbarSettings = False
-        else: self._originalScrollbarSettings = activeView.get_parent().get_overlay_scrolling()
-        overlayScrollbarOn =  settings.get_value(r'prefer-overlay-scrollbar').get_boolean()
-        for window in self.windows:
-            for view in window.get_views():
-                view.get_parent().set_overlay_scrolling(overlayScrollbarOn)
-        toggleOverlayScrollbarAction = Gio.SimpleAction.new_stateful(
-                        r'toggle-overlay-scrollbar', None, GLib.Variant.new_boolean(overlayScrollbarOn))
-        toggleOverlayScrollbarAction.connect(r'change-state', self._toggleOverlayScrollbar)
-        self.app.add_action(toggleOverlayScrollbarAction)
-        toggleOverlayScrollbarItem = Gio.MenuItem.new("Prefer Overlay Scrollbar", r'app.toggle-overlay-scrollbar')
         ## EXTRA KEYBOARD SHORTCUTS
         self._setKeyboardShortcut(r'win.redo', r'<Primary>Y')
         self._setKeyboardShortcut(r'win.goto-line', r'<Primary>G')
@@ -691,14 +691,11 @@ class MetageditAppActivatable(GObject.Object, Gedit.AppActivatable):
         ## BOTTOM MARGIN
         for view in self.app.get_views(): view.set_bottom_margin(0)
         self.app.remove_action(r'toggle-bottom-margin')
+        ## OVERLAY SCROLLBAR SWITCH
+        self.app.remove_action(r'toggle-overlay-scrollbar')
         ## DARK THEME SWITCH
         self._settings.set_property(r'gtk-application-prefer-dark-theme', self._originalThemeSettings)
         self.app.remove_action(r'toggle-dark-theme')
-        ## OVERLAY SCROLLBAR SWITCH
-        for window in self.windows:
-            for view in window.get_views():
-                view.get_parent().set_overlay_scrolling(self._originalScrollbarSettings)
-        self.app.remove_action(r'toggle-overlay-scrollbar')
         ## EXTRA KEYBOARD SHORTCUTS
         self._clearKeyboardShortcut(r'win.redo')
         self._clearKeyboardShortcut(r'win.goto-line')
