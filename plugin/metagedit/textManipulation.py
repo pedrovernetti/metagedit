@@ -316,6 +316,16 @@ def commentLines( document ):
         document.insert_at_cursor('\n'.join(selection))
     document.end_user_action()
 
+def _uncommentedSpecialCaseLine( line, language, cursorOffset ):
+    ## COMMENT/UNCOMMENT
+    if ((language == r'cobol') and (line[6] == r'*')):
+        line = line[:6] + line[7:]
+        return (line, (lineOffset - (lineOffset > 5)))
+    elif((language == r'fortran77') and line.startswith((r'C', r'c'))):
+        if (line.startswith(r' ')): return ((r'C' + line), (cursorOffset + 1))
+        return (line[1:], (cursorOffset - 1))
+    return (line, cursorOffset)
+
 def _uncommentedLine( line, language, cursorOffset=0 ):
     ## COMMENT/UNCOMMENT
     limits = None
@@ -329,6 +339,8 @@ def _uncommentedLine( line, language, cursorOffset=0 ):
         limits = commentSymbol[r'block'][language]
         start = r'(' + re.escape(limits[0]) + r')'
         commentedLine = re.compile(r'^\s*' + start + r'.*' + re.escape(limits[1][0]))
+    elif(language in commentSymbol[r'special']):
+        line, cursorOffset = _uncommentedSpecialCaseLine(line, language, cursorOffset)
     if ((limits is not None) and commentedLine.match(line)):
         finalOffset = cursorOffset
         line = line.rsplit(limits[1], 1) if (len(limits[1]) > 0) else [line, r'']
