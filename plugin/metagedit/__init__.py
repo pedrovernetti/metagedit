@@ -95,6 +95,8 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self._updateEncodingStatus(tab.get_document())
         ## OPEN AS ADMIN
         self.window.lookup_action(r'open-as-admin').set_enabled(self._allowOpenAsAdmin())
+        ## SESSIONS
+        self._autosaveSession(2)
 
     def _onActiveTabStateChange( self, window ):
         ## ENCODING STUFF
@@ -117,16 +119,16 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
     def _onTabAdded( self, window, tab, data=None ):
         tab.get_document().connect(r'save', self._onDocumentSave)
         ## SESSIONS
-        if (self._resumedSessionTime > (nowTime() - 2)): self._closeTabIfJunk(tab)
-        else: self.saveSession()
+        if (self._lastSessionResuming > (nowTime() - 1)): self._closeTabIfJunk(tab)
+        self._autosaveSession(0)
 
     def _onTabRemoved( self, window, tab, data=None ):
         ## SESSIONS
-        if (not self._quitting): self.saveSession()
+        self._autosaveSession(0)
 
     def _onTabsReordered( self, window, data=None ):
         ## SESSIONS
-        self.saveSession()
+        self._autosaveSession(0)
 
     def _onWindowShow( self, window, data=None ):
         ## SESSIONS
@@ -140,15 +142,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         if (len(self.window.get_application().get_windows()) == 1):
             self.saveSession()
 
-    def registerSession( self, sessionName ):
-        ## SESSIONS
-        sessionActionName = r'load-session-' + sessionName.replace(r' ', r'_')
-        self._sessionsActions.add(sessionActionName)
-        sessionAction = Gio.SimpleAction(name=sessionActionName)
-        sessionAction.connect(r'activate', lambda a, p: self.loadSession(sessionName))
-        self.window.add_action(sessionAction)
-
-    def saveSession( self, sessionName=None ):
+    def _currentSession( self ):
         ## SESSIONS
         if (self.window.get_active_document() is None): return
         tabs = self.window.get_active_tab().get_parent().get_children()
@@ -164,6 +158,27 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             info = active + '\t' + line.ljust(6, r' ') + '\t'
             info += column.ljust(6, r' ') + '\t' + encoding + '\t'
             session.append(info + re.sub(r'^/', r'file:///', document.get_uri_for_display()))
+        return session
+
+    def registerSession( self, sessionName ):
+        ## SESSIONS
+        sessionActionName = r'load-session-' + sessionName.replace(r' ', r'_')
+        self._sessionsActions.add(sessionActionName)
+        sessionAction = Gio.SimpleAction(name=sessionActionName)
+        sessionAction.connect(r'activate', lambda a, p: self.loadSession(sessionName))
+        self.window.add_action(sessionAction)
+
+    def _autosaveSession( self, minimumIntervalInSecs ):
+        ## SESSIONS
+        if (self._resumingSession or self._quitting): return
+        if (not settings.get_value(r'resume-session').get_boolean()): return
+        if ((not minimumIntervalInSecs) or
+            (self._lastSessionAutosave < (nowTime() - minimumIntervalInSecs))):
+            self.saveSession()
+            self._lastSessionAutosave = nowTime()
+
+    def saveSession( self, sessionName=None ):
+        session = self._currentSession()
         if (sessionName is None):
             session = [re.sub(r'^(.*?) *(\t.*?) *(\t.*?) *(\t.*?) *(\t.+)$', r'\1\2\3\4\5', entry)
                         for entry in session]
@@ -176,9 +191,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
 
     def loadSession( self, sessionName=None ):
         ## SESSIONS
+        self._resumingSession = True
         if (sessionName is None):
             sessionEntries = settings.get_value(r'previous-session').get_strv()
-            self._resumedSessionTime = nowTime()
         else:
             try: sessionEntries = open(sessionsFolder + sessionName, r'r').read().splitlines()
             except: return
@@ -202,6 +217,8 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             toOpen = Gio.File.new_for_uri(toOpen)
             self.window.create_tab_from_location(
                     toOpen, encoding, int(line), int(column), True, active)
+        self._lastSessionResuming = nowTime()
+        self._resumingSession = False
 
     def removeSession( self, sessionName ):
         ## SESSIONS
@@ -271,7 +288,9 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         openAsAdminAction.connect(r'activate', self._openAsAdmin)
         self.window.add_action(openAsAdminAction)
         ## SESSIONS
-        self._resumedSessionTime = 0
+        self._lastSessionAutosave = 0
+        self._lastSessionResuming = 0
+        self._resumingSession = False
         self._quitting = False
         self._sessionsActions = set()
         if (not os.path.isdir(sessionsFolder)):
@@ -441,6 +460,10 @@ class MetageditViewActivatable(GObject.Object, Gedit.ViewActivatable):
         dedupItem.show()
         dedupItem.connect(r'activate', lambda i: dedupLines(self.view.get_buffer()))
         sortOptionsSubmenu.append(dedupItem)
+        dedupKEOItem = Gtk.MenuItem.new_with_mnemonic("Remove Duplicates (keeping empty ones)")
+        dedupKEOItem.show()
+        dedupKEOItem.connect(r'activate', lambda i: dedupLines(self.view.get_buffer(), KeepEmptyOnes=True))
+        sortOptionsSubmenu.append(dedupKEOItem)
         removeEmptyItem = Gtk.MenuItem.new_with_mnemonic("Remove Empty Ones")
         removeEmptyItem.show()
         removeEmptyItem.connect(r'activate', lambda i: removeEmptyLines(self.view.get_buffer()))

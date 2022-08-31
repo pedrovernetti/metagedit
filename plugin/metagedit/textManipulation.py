@@ -73,7 +73,7 @@ def getSelectedLines( document, noSelectionMeansEverything=True ):
 
 def removeTrailingSpaces( document, onSaveMode=False ):
     ## REMOVE TRAILING SPACES
-    trailingSpaces = r'[\f\t \u2000-\u200A\u205F\u3000]+$'
+    trailingSpaces = re.compile(r'[\f\t \u2000-\u200A\u205F\u3000]+$')
     if (onSaveMode):
         beg, end, noneSelected = (document.get_start_iter(), document.get_end_iter(), True)
     else:
@@ -85,14 +85,14 @@ def removeTrailingSpaces( document, onSaveMode=False ):
         for line in selection.splitlines():
             if (len(line) != 0):
                 beg.set_line(lineNumber)
-                beg.set_line_offset(len(re.sub(trailingSpaces, r'', line)))
+                beg.set_line_offset(len(trailingSpaces.sub(r'', line)))
                 end.set_line(lineNumber)
                 end.set_line_offset(len(line))
                 document.delete(beg, end)
             lineNumber += 1
         removeTrailingNewlines(document)
     else: # selection mode
-        selection = re.sub(trailingSpaces, r'', selection, flags=re.MULTILINE)
+        selection = trailingSpaces.sub(r'', selection, flags=re.MULTILINE)
         document.delete(beg, end)
         document.insert_at_cursor(selection)
     document.end_user_action()
@@ -175,21 +175,21 @@ def reverseLines( document ):
 
 
 
-def _dedupedLines( selection, caseSensitive=True, offset=0 ): #TODO: [selection mode] inserts trailing newlines for some reason
+def _dedupedLines( selection, caseSensitive=True, KeepEmptyOnes=False, offset=0 ):
     ## LINE OPERATIONS
+    emptyLine = re.compile(r'^\s*$')
     finalContent = []
     seen = set()
     for line in selection:
         line_ = line[offset:] if caseSensitive else line[offset:].casefold()
         if (line_ not in seen):
             finalContent.append(line)
-            seen.add(line_)
+            if (not (KeepEmptyOnes and emptyLine.match(line_))): seen.add(line_)
     return finalContent
 
-
-
-def dedupLines( document, caseSensitive=False, offset=0 ):
+def dedupLines( document, caseSensitive=False, KeepEmptyOnes=False, offset=0 ):
     ## LINE OPERATIONS
+    emptyLine = re.compile(r'^\s*$')
     beg, end, noneSelected = getSelectedLines(document)
     document.begin_user_action()
     if (noneSelected): # whole-document mode (doesn't move the cursor)
@@ -200,13 +200,14 @@ def dedupLines( document, caseSensitive=False, offset=0 ):
             if (not end.ends_line()): end.forward_to_line_end()
             line = document.get_text(beg, end, False)[offset:]
             if (not caseSensitive): line = line.casefold()
-            if ((line in seen) or seen.add(line)):
+            if ((not (KeepEmptyOnes and emptyLine.match(line))) and
+                ((line in seen) or seen.add(line))):
                 end.forward_char()
                 document.delete(beg, end)
     else: # selection mode
         selection = document.get_text(beg, end, False).splitlines()
         document.delete(beg, end)
-        selection = _dedupedLines(selection, caseSensitive, offset)
+        selection = _dedupedLines(selection, caseSensitive, KeepEmptyOnes, offset)
         document.insert_at_cursor('\n'.join(selection))
     document.end_user_action()
 
@@ -415,8 +416,8 @@ def percentDecode( document ):
 def redecode( document, actualEncoding=r'Autodetect', forceASCIIMode=False ):
     ## ENCODING STUFF
     actualEncoding = actualEncoding.strip().replace(r' ', r'_').lower()
-    actualEncoding = re.sub (r'^(code[-_]?page|windows)[-_]?', r'cp', actualEncoding)
-    actualEncoding = re.sub (r'^mac[-_]?os[-_]?', r'mac', actualEncoding)
+    actualEncoding = re.sub(r'^(code[-_]?page|windows)[-_]?', r'cp', actualEncoding)
+    actualEncoding = re.sub(r'^mac[-_]?os[-_]?', r'mac', actualEncoding)
     auto = (actualEncoding == r'autodetect')
     try:
         inUseEncoding = codecLookup(document.get_file().get_encoding().get_charset()).name
