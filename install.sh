@@ -47,9 +47,9 @@ if [[ "$MODE" -lt 2 ]]; then
 
 # non-default modes' first step (removing old files)
 else
-    sudo rm -vfr "$extensions_folder/metagedit*"
+    sudo rm -vfr "$extensions_folder/metagedit"*
     if [[ "$MODE" -lt 4 ]]; then
-        tryDoing rm -vfr "$HOME/.config/gedit/metagedit*"
+        tryDoing rm -vfr "$HOME/.config/gedit/metagedit"*
         tryDoing sudo rm -vfr "$settings_folder/$settings_schema.gschema.xml"
         if [[ "$MODE" -eq 3 ]]; then
             tryDoing sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
@@ -65,11 +65,11 @@ else
 # self-explainatory step
 printf "\033[1mCopying the files to the gedit plugins folder...\033[0m\n"
 tryDoing sudo mkdir -p "$extensions_folder"
-tryDoing sudo cp -rn "${selfpath%/}/plugin/"* "$extensions_folder"
+tryDoing sudo cp -rn "${selfpath%/*}/plugin/"* "$extensions_folder"
 
 # adding gsettings entries
 printf "\033[1mAdding entries to GSettings...\033[0m\n"
-tryDoing sudo cp -n "${selfpath%/}/$settings_schema.gschema.xml" "$settings_folder/"
+tryDoing sudo cp -n "${selfpath%/*}/$settings_schema.gschema.xml" "$settings_folder/"
 tryDoing sudo glib-compile-schemas "$settings_folder/"
 
 # finishing
