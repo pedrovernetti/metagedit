@@ -29,8 +29,11 @@ from .dialogs import *
 
 
 settings = Gio.Settings.new(r'org.gnome.gedit.plugins.metagedit')
+_homeFolder = os.environ[r'HOME']
 ## SESSIONS
-sessionsFolder = os.environ[r'HOME'] + r'/.config/gedit/metagedit-sessions/'
+sessionsFolder = _homeFolder + r'/.config/gedit/metagedit-sessions/'
+## RESTORE UNSAVED DOCUMENTS
+unsavedsFolder = _homeFolder + r'/.cache/gedit/metagedit-backups/'
 
 
 
@@ -141,15 +144,28 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self._quitting = True
         if (len(self.window.get_application().get_windows()) == 1):
             self.saveSession()
+        ## RESTORE UNSAVED DOCUMENTS
+        if (settings.get_value(r'resume-session').get_boolean()):
+            for tab in self.window.get_active_tab().get_parent().get_children():
+                tab.get_document().set_modified(False)
 
-    def _currentSession( self ):
+    def _unsavedDocumentBackup( self, document ):
+        ## RESTORE UNSAVED DOCUMENTS
+        content = document.get_text(document.get_start_iter(), document.get_end_iter(), False)
+        if ((len(content) < 1) or (re.match(r'^\s+$', content))): return None
+        backupName = document.get_short_name_for_display()
+        try: open((unsavedsFolder + backupName), r'w').write(content)
+        except: return None
+        return (r'unsaved://' + backupName)
+
+    def _currentSession( self, includeUnsaved ):
         ## SESSIONS
         if (self.window.get_active_document() is None): return
+        while (self._resumingSession): pass
         tabs = self.window.get_active_tab().get_parent().get_children()
         session = []
         for tab in tabs:
             document = tab.get_document()
-            if (document.get_file().get_location() is None): continue
             active = r'x' if (tab == self.window.get_active_tab()) else r' '
             line = str(document.get_iter_at_mark(document.get_insert()).get_line() + 1)
             column = str(document.get_iter_at_mark(document.get_insert()).get_line_offset() + 1)
@@ -157,6 +173,12 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             encoding = (r' ' * 16) if (encoding is None) else encoding.get_charset().ljust(16, r' ')
             info = active + '\t' + line.ljust(6, r' ') + '\t'
             info += column.ljust(6, r' ') + '\t' + encoding + '\t'
+            if (document.get_file().get_location() is None):
+                ## RESTORE UNSAVED DOCUMENTS
+                if (includeUnsaved):
+                    uri = self._unsavedDocumentBackup(document)
+                    if (uri): session.append(info + uri)
+                continue
             session.append(info + re.sub(r'^/', r'file:///', document.get_uri_for_display()))
         return session
 
@@ -178,8 +200,10 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             self._lastSessionAutosave = nowTime()
 
     def saveSession( self, sessionName=None ):
-        session = self._currentSession()
-        if (sessionName is None):
+        ## SESSIONS
+        isAutomaticAction = sessionName is None
+        session = self._currentSession(isAutomaticAction)
+        if (isAutomaticAction):
             session = [re.sub(r'^(.*?) *(\t.*?) *(\t.*?) *(\t.*?) *(\t.+)$', r'\1\2\3\4\5', entry)
                         for entry in session]
             settings.set_value(r'previous-session', GLib.Variant(r'as', session))
@@ -188,6 +212,26 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             except: return
             self.registerSession(sessionName)
             self.window.get_application().metageditActivatable.updateMenuSessions()
+
+    def _createTab( self, uri, encoding, line, column, isActive ):
+        if (uri.startswith(r'unsaved://')):
+            ## RESTORE UNSAVED DOCUMENTS
+            uri = unsavedsFolder + uri[10:]
+            tab = self.window.create_tab(isActive)
+            document = tab.get_document()
+            try:
+                document.insert_at_cursor(open(uri, r'r').read())
+                os.remove(uri)
+                cursorPosition = document.get_iter_at_mark(document.get_insert())
+                cursorPosition.set_line(line - 1)
+                cursorPosition.set_line_offset(column - 1)
+                document.place_cursor(cursorPosition)
+                document.set_modified(True)
+            except:
+                self.window.close_tab(tab)
+        else:
+            gfile = Gio.File.new_for_uri(uri)
+            self.window.create_tab_from_location(gfile, encoding, line, column, True, isActive)
 
     def loadSession( self, sessionName=None ):
         ## SESSIONS
@@ -214,9 +258,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
             encoding = encoding.strip()
             if (encoding == r''): encoding = None
             else: encoding = gi.repository.GtkSource.Encoding.get_from_charset(encoding)
-            toOpen = Gio.File.new_for_uri(toOpen)
-            self.window.create_tab_from_location(
-                    toOpen, encoding, int(line), int(column), True, active)
+            self._createTab(toOpen, encoding, int(line), int(column), active)
         self._lastSessionResuming = nowTime()
         self._resumingSession = False
 
@@ -294,7 +336,7 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         self._quitting = False
         self._sessionsActions = set()
         if (not os.path.isdir(sessionsFolder)):
-            try: os.mkdir(sessionsFolder)
+            try: os.makedirs(sessionsFolder)
             except: pass
         else:
             for session in os.listdir(sessionsFolder): self.registerSession(session)
@@ -309,6 +351,10 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         manageSessionsDialogAction = Gio.SimpleAction(name=r'manage-sessions-dialog')
         manageSessionsDialogAction.connect(r'activate', lambda a, p: showDialog(self.window.manageSessionsDialog))
         self.window.add_action(manageSessionsDialogAction)
+        ## RESTORE UNSAVED DOCUMENTS
+        if (not os.path.isdir(unsavedsFolder)):
+            try: os.makedirs(unsavedsFolder)
+            except: pass
         ## DOCUMENT STATS
         self.window.documentStatsDialog = DocumentStatsDialog(self.window)
         documentStatsDialogAction = Gio.SimpleAction(name=r'document-stats-dialog')

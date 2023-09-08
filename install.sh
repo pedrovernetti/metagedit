@@ -50,6 +50,7 @@ else
     sudo rm -vfr "$extensions_folder/metagedit"*
     if [[ "$MODE" -lt 4 ]]; then
         tryDoing rm -vfr "$HOME/.config/gedit/metagedit"*
+        tryDoing rm -vfr "$HOME/.cache/gedit/metagedit"*
         tryDoing sudo rm -vfr "$settings_folder/$settings_schema.gschema.xml"
         if [[ "$MODE" -eq 3 ]]; then
             tryDoing sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
