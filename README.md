@@ -5,7 +5,7 @@ Metagedit is a python plugin for [Gedit](https://en.wikipedia.org/wiki/Gedit) (G
 ### Characteristics
 
 * Metagedit-related settings/prefs are all stored using __GSettings__, persisting through Gedit sessions and being externally modifiable via gsettings interfaces;
-* __Saved sessions are stored as files__ at a subfolder inside Gedit's config folder, so to be easily copied around;
+* __Saved sessions are stored as files__ at a subfolder inside Gedit's config folder, to be easily copied around;
 * Most __operations__ work both on the __whole document__ (when nothing is selected) and on __selected parts only__ (when something is).
 
 ----
@@ -20,8 +20,9 @@ Metagedit is a python plugin for [Gedit](https://en.wikipedia.org/wiki/Gedit) (G
 * __Open as Administrator__: adds a File menu option to re-open file as administrator (Root), making it possible to quikcly edit protected file;
 * __Overlay Scrollbar__: adds a toggle at View menu to enable/disable overlay scrollbars for Gedit;
 * __Remove Trailing Spaces__: adds a context menu option to remove trailing spaces (incl. trailing newlines when applied to the whole document);
+* __Restore Unsaved Documents__: when auto-resuming of previous session is enabled (see _Sessions_ feature), unsaved documents are remembered and restored along with the other tabs;
 * __Scroll Past Bottom__: adds a bottom margin to Gedit view, which can be enabled/disable via toggle on View menu;
-* __Sessions__: adds a "Sessions" submenu where it is possible to save and load Gedit tab sessions and also toggle auto-resuming of previous session on startup (remembering tabs);
+* __Sessions__: adds a "Sessions" submenu where you can save/load Gedit tab sessions and toggle auto-resuming of previous session on startup (remembering tabs);
 * __Smart Home/End/Backspace__: enables the Smart-Home, Smart-End and Smart-Backspace behaviors (pressing Home moves first to the end of indentation, pressing End acts similarly and pressing Backspace on indentations removes as many spaces as needed to remove one indentation level).
 
 ----
