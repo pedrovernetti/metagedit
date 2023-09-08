@@ -128,6 +128,11 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
     def _onTabRemoved( self, window, tab, data=None ):
         ## SESSIONS
         self._autosaveSession(0)
+        ## RESTORE UNSAVED DOCUMENTS
+        document = tab.get_document()
+        if ((not self._quitting) and (document.get_file().get_location() is None)):
+            backupPath = unsavedsFolder + document.get_short_name_for_display()
+            if (os.path.isfile(backupPath)): os.remove(backupPath)
 
     def _onTabsReordered( self, window, data=None ):
         ## SESSIONS
@@ -153,10 +158,10 @@ class MetageditWindowActivatable(GObject.Object, Gedit.WindowActivatable):
         ## RESTORE UNSAVED DOCUMENTS
         content = document.get_text(document.get_start_iter(), document.get_end_iter(), False)
         if ((len(content) < 1) or (re.match(r'^\s+$', content))): return None
-        backupName = document.get_short_name_for_display()
-        try: open((unsavedsFolder + backupName), r'w').write(content)
+        name = document.get_short_name_for_display()
+        try: open((unsavedsFolder + name), r'w').write(content)
         except: return None
-        return (r'unsaved://' + backupName)
+        return (r'unsaved://' + name)
 
     def _currentSession( self, includeUnsaved ):
         ## SESSIONS
